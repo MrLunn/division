@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THE DIVISION — DARK ZONE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen">
+    <div class="auth-bg"></div>
+    <div class="auth-container">
+      <div class="auth-logo">
+        <div class="auth-logo-main">THE <span>DIVISION</span></div>
+        <div class="auth-logo-sub">DARK ZONE · TACTICAL MMO</div>
+      </div>
+
+      <div id="auth-tabs">
+        <button class="auth-tab active" onclick="showAuthTab('login')">LOGIN</button>
+        <button class="auth-tab" onclick="showAuthTab('register')">REGISTER</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div id="tab-login" class="auth-form">
+        <div class="form-group">
+          <label>EMAIL</label>
+          <input type="email" id="login-email" placeholder="agent@shd.gov">
+        </div>
+        <div class="form-group">
+          <label>PASSWORD</label>
+          <input type="password" id="login-password" placeholder="••••••••">
+        </div>
+        <button class="btn-primary" onclick="doLogin()">DEPLOY TO FIELD</button>
+        <div id="login-error" class="auth-error"></div>
+      </div>
+
+      <!-- REGISTER -->
+      <div id="tab-register" class="auth-form" style="display:none">
+        <div class="form-group">
+          <label>USERNAME</label>
+          <input type="text" id="reg-username" placeholder="Agent handle" maxlength="32">
+        </div>
+        <div class="form-group">
+          <label>EMAIL</label>
+          <input type="email" id="reg-email" placeholder="agent@shd.gov">
+        </div>
+        <div class="form-group">
+          <label>AGENT NAME</label>
+          <input type="text" id="reg-charname" placeholder="Your operative name" maxlength="32">
+        </div>
+        <div class="form-group">
+          <label>PASSWORD</label>
+          <input type="password" id="reg-password" placeholder="Min 6 characters">
+        </div>
+        <button class="btn-primary" onclick="doRegister()">ACTIVATE AGENT</button>
+        <div id="reg-error" class="auth-error"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN (hidden until authenticated) -->
+  <div id="game-screen" style="display:none">
+
+    <!-- TOP BAR -->
+    <div id="topbar">
+      <div class="topbar-left">
+        <div class="logo-small">THE <span>DIVISION</span></div>
+        <div id="rogue-indicator" class="rogue-badge" style="display:none">⚠ ROGUE</div>
+      </div>
+      <div class="topbar-center">
+        <nav>
+          <button class="navbtn active" data-view="map" onclick="switchView('map')">MAP</button>
+          <button class="navbtn" data-view="inventory" onclick="switchView('inventory')">INVENTORY</button>
+          <button class="navbtn" data-view="darkzone" onclick="switchView('darkzone')">DARK ZONE</button>
+          <button class="navbtn" data-view="clans" onclick="switchView('clans')">CLANS</button>
+          <button class="navbtn" data-view="leaderboard" onclick="switchView('leaderboard')">LEADERBOARD</button>
+        </nav>
+      </div>
+      <div class="topbar-right">
+        <span id="hud-name" class="agent-name"></span>
+        <span id="hud-level" class="hud-level"></span>
+        <span id="hud-gs" class="hud-gs"></span>
+        <button class="btn-logout" onclick="logout()">EXTRACT</button>
+      </div>
+    </div>
+
+    <!-- HUD BAR -->
+    <div id="hud-bar">
+      <div class="hud-stat">
+        <div class="hud-label">HEALTH</div>
+        <div class="hud-bar-track"><div id="hud-health-bar" class="hud-bar-fill health"></div></div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-label">ARMOR</div>
+        <div class="hud-bar-track"><div id="hud-armor-bar" class="hud-bar-fill armor"></div></div>
+      </div>
+      <div class="hud-stat hud-credits">
+        <div class="hud-label">CREDITS</div>
+        <div id="hud-credits" class="hud-val"></div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-label">XP</div>
+        <div class="hud-bar-track"><div id="hud-xp-bar" class="hud-bar-fill xp"></div></div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATION BANNER -->
+    <div id="notif-banner" class="notif-banner"></div>
+
+    <!-- VIEWS -->
+    <div id="views">
+
+      <!-- MAP VIEW -->
+      <div id="view-map" class="view active">
+        <div class="map-layout">
+          <div class="map-side-left">
+            <div class="panel">
+              <div class="panel-title">ACTIVE MISSIONS</div>
+              <div id="mission-list"></div>
+            </div>
+          </div>
+          <div class="map-center">
+            <canvas id="map-canvas"></canvas>
+            <div id="map-tooltip" class="map-tooltip"></div>
+            <div id="map-legend" class="map-legend">
+              <div class="legend-item"><span class="ldot" style="background:#f4a116"></span> Expedition</div>
+              <div class="legend-item"><span class="ldot" style="background:#a335ee"></span> Mission</div>
+              <div class="legend-item"><span class="ldot" style="background:#00ccff"></span> Stronghold</div>
+              <div class="legend-item"><span class="ldot" style="background:#e74c3c"></span> Dark Zone</div>
+              <div class="legend-item"><span class="ldot" style="background:#2ecc71"></span> Raid</div>
+            </div>
+          </div>
+          <div class="map-side-right">
+            <div class="panel">
+              <div class="panel-title">ACTIVITY FEED</div>
+              <div id="activity-feed"></div>
+            </div>
+            <div class="panel" style="margin-top:8px">
+              <div class="panel-title">GLOBAL CHAT</div>
+              <div id="chat-messages"></div>
+              <div class="chat-input-row">
+                <input type="text" id="chat-input" placeholder="Type message..." maxlength="200"
+                  onkeydown="if(event.key==='Enter') sendChat()">
+                <button onclick="sendChat()">SEND</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INVENTORY VIEW -->
+      <div id="view-inventory" class="view">
+        <div class="inv-layout">
+          <div class="inv-left">
+            <div class="panel">
+              <div class="panel-title">LOADOUT <span id="inv-gs-display" class="gs-badge-big"></span></div>
+              <div id="equipped-grid" class="gear-grid"></div>
+            </div>
+            <div class="panel" style="margin-top:10px">
+              <div class="panel-title">OPEN CACHE</div>
+              <div class="cache-options">
+                <div class="cache-card" onclick="openCache('standard')">
+                  <div class="cache-name">STANDARD</div>
+                  <div class="cache-cost">500 ¢</div>
+                  <div class="cache-desc">Normal loot pool</div>
+                </div>
+                <div class="cache-card" onclick="openCache('high_end')">
+                  <div class="cache-name">HIGH-END</div>
+                  <div class="cache-cost">2,000 ¢</div>
+                  <div class="cache-desc">Rare guaranteed</div>
+                </div>
+                <div class="cache-card named" onclick="openCache('named')">
+                  <div class="cache-name">NAMED</div>
+                  <div class="cache-cost">8,000 ¢</div>
+                  <div class="cache-desc">Named guaranteed</div>
+                </div>
+                <div class="cache-card exotic" onclick="openCache('exotic')">
+                  <div class="cache-name">EXOTIC</div>
+                  <div class="cache-cost">25,000 ¢</div>
+                  <div class="cache-desc">Exotic guaranteed</div>
+                </div>
+              </div>
+              <div id="cache-result" class="cache-result" style="display:none"></div>
+            </div>
+          </div>
+          <div class="inv-right">
+            <div class="panel">
+              <div class="panel-title">STASH <span id="stash-count" class="muted-badge"></span></div>
+              <div id="stash-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DARK ZONE VIEW -->
+      <div id="view-darkzone" class="view">
+        <div class="dz-layout">
+          <div class="dz-left">
+            <div class="panel">
+              <div class="panel-title dz-title">⚠ DARK ZONE — ACTIVE CONFLICT</div>
+              <div id="dz-zones"></div>
+            </div>
+            <div class="panel" style="margin-top:10px">
+              <div class="panel-title">CAPTURED BASES</div>
+              <div id="dz-bases"></div>
+            </div>
+          </div>
+          <div class="dz-right">
+            <div class="panel">
+              <div class="panel-title">PVP COMBAT</div>
+              <div id="pvp-stats-display"></div>
+              <div class="pvp-actions">
+                <button class="btn-danger" onclick="enterDZ()">ENTER DARK ZONE</button>
+                <button class="btn-secondary" onclick="clearRogue()">PAY BOUNTY (2,000 ¢)</button>
+              </div>
+              <div id="pvp-combat-log" class="combat-log" style="display:none"></div>
+            </div>
+            <div class="panel" style="margin-top:10px">
+              <div class="panel-title">PVP KILL FEED</div>
+              <div id="pvp-feed"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLANS VIEW -->
+      <div id="view-clans" class="view">
+        <div class="clan-layout">
+          <div class="clan-left">
+            <div id="my-clan-panel" class="panel">
+              <div class="panel-title">MY CLAN</div>
+              <div id="my-clan-content"></div>
+            </div>
+          </div>
+          <div class="clan-right">
+            <div class="panel">
+              <div class="panel-title">ALL CLANS
+                <button class="btn-small" onclick="showCreateClan()">+ FOUND CLAN</button>
+              </div>
+              <div id="clan-list"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Create clan modal -->
+        <div id="create-clan-modal" class="modal" style="display:none">
+          <div class="modal-box">
+            <div class="modal-title">FOUND A CLAN — COST: 5,000 ¢</div>
+            <div class="form-group"><label>CLAN NAME</label><input type="text" id="clan-name" maxlength="32" placeholder="Iron Shield"></div>
+            <div class="form-group"><label>TAG (max 6)</label><input type="text" id="clan-tag" maxlength="6" placeholder="IRON"></div>
+            <div class="form-group"><label>DESCRIPTION</label><input type="text" id="clan-desc" placeholder="Elite SHD fireteam"></div>
+            <div class="modal-actions">
+              <button class="btn-primary" onclick="createClan()">FOUND CLAN</button>
+              <button class="btn-secondary" onclick="hideModal('create-clan-modal')">CANCEL</button>
+            </div>
+            <div id="clan-error" class="auth-error"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEADERBOARD VIEW -->
+      <div id="view-leaderboard" class="view">
+        <div class="lb-layout">
+          <div class="lb-tabs">
+            <button class="lb-tab active" onclick="loadLeaderboard('gear_score',this)">GEAR SCORE</button>
+            <button class="lb-tab" onclick="loadLeaderboard('pvp_kills',this)">PVP KILLS</button>
+            <button class="lb-tab" onclick="loadLeaderboard('missions',this)">MISSIONS</button>
+            <button class="lb-tab" onclick="loadLeaderboard('clans',this)">CLANS</button>
+          </div>
+          <div class="panel lb-panel">
+            <div id="lb-my-rank" class="lb-my-rank"></div>
+            <div id="lb-entries"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /views -->
+
+    <!-- MISSION RUN MODAL -->
+    <div id="mission-modal" class="modal" style="display:none">
+      <div class="modal-box mission-modal-box">
+        <div id="mission-modal-title" class="modal-title"></div>
+        <div id="mission-combat-log" class="combat-log"></div>
+        <div id="mission-loot-reveal" class="loot-reveal" style="display:none">
+          <div class="loot-reveal-title">LOOT ACQUIRED</div>
+          <div id="mission-loot-items"></div>
+        </div>
+        <div id="mission-modal-footer">
+          <button class="btn-primary" onclick="hideModal('mission-modal')">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ITEM DETAIL MODAL -->
+    <div id="item-modal" class="modal" style="display:none">
+      <div class="modal-box">
+        <div id="item-modal-content"></div>
+        <div class="modal-actions">
+          <button id="item-equip-btn" class="btn-primary" onclick="equipCurrentItem()">EQUIP</button>
+          <button id="item-sell-btn" class="btn-danger" onclick="sellCurrentItem()">SELL</button>
+          <button class="btn-secondary" onclick="hideModal('item-modal')">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /game-screen -->
+
+  <script src="/js/api.js"></script>
+  <script src="/js/map.js"></script>
+  <script src="/js/game.js"></script>
+</body>
+</html>
