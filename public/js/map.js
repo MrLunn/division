@@ -30,7 +30,8 @@ const MapEngine = {
   init() {
     this.canvas = document.getElementById('map-canvas');
     if (!this.canvas) return;
-    this.resize();
+this.ctx = this.canvas.getContext('2d');
+        this.resize();
     this.canvas.addEventListener('mousemove', (e) => this.onHover(e));
     this.canvas.addEventListener('mouseleave', () => {
       this.hovered = null;
