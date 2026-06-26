@@ -1,3 +1,4 @@
+// Oslo missions seed v2
 /**
  * Division MMO — Database Initialization
  * Run: node server/db/init.js
