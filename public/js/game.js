@@ -1,3 +1,4 @@
+// Oslo map integration
 /**
  * Division MMO — Game Controller
  * Manages auth, views, and all game state/actions
