@@ -1,5 +1,4 @@
-// v3
-—/**
+/**
  * Division MMO — Oslo City Map Engine
  * Hand-drawn tactical map of Oslo with real districts, streets,
  * fjord, and mission locations placed on actual geography.
