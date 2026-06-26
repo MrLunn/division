@@ -1,4 +1,5 @@
-/**
+// v3
+—/**
  * Division MMO — Oslo City Map Engine
  * Hand-drawn tactical map of Oslo with real districts, streets,
  * fjord, and mission locations placed on actual geography.
@@ -309,7 +310,7 @@ this.ctx = this.canvas.getContext('2d');
         <div style="font-size:11px;color:var(--muted2);margin-bottom:6px">📍 ${m.street}, ${m.district}</div>
         <div style="font-size:11px;color:var(--div-text);margin-bottom:8px">${m.desc}</div>
         ${m.dbMission?'<div class="tt-reward">+'+m.dbMission.xp_reward?.toLocaleString()+' XP · +'+m.dbMission.credit_reward?.toLocaleString()+' ¢</div>':'<div class="tt-reward" style="color:var(--muted2)">No mission data</div>'}
-        <button class="tt-launch" onclick="window.Game&&window.Game.runMission('"+(m.dbMission?.id||'')+`','"+m.key+"')">⚡ LAUNCH MISSION</button>`;
+        <button class="tt-launch" onclick="window.Game && window.Game.runMission('" + (m.dbMission ? m.dbMission.id : '') + "', '" + m.key + "')">⚡ LAUNCH MISSION</button>`;
       tt.style.display='block';
       tt.style.left=Math.min(mx+22,this.W-260)+'px';
       tt.style.top=Math.min(my-10,this.H-175)+'px';
