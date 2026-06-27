@@ -732,3 +732,110 @@ html, body {
 .text-green   { color: var(--green); }
 .text-red     { color: var(--red); }
 .font-hud     { font-family: var(--font-hud); }
+
+/* ============================================================
+   LOOT CARDS — icons, stat bars, dopamine
+   ============================================================ */
+
+/* Loot card header layout */
+.lic-header {
+  display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px;
+}
+.lic-slot-icon {
+  font-size: 26px; line-height: 1; flex-shrink: 0; width: 32px; text-align: center;
+}
+.lic-header-info { flex: 1; }
+.lic-name { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+.lic-slot { font-size: 10px; color: var(--muted2); letter-spacing: 2px; }
+.lic-gs-block { text-align: right; flex-shrink: 0; }
+.lic-gs { font-family: var(--font-hud); font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1; }
+.lic-talent {
+  font-size: 11px; color: var(--cyan);
+  margin-bottom: 8px; padding: 4px 8px;
+  background: rgba(26,188,156,0.08);
+  border-left: 2px solid var(--cyan);
+}
+.lic-flavor {
+  font-size: 10px; color: var(--muted); font-style: italic;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+}
+
+/* Stat bars inside loot cards */
+.lic-stats-grid {
+  display: flex; flex-direction: column; gap: 5px;
+  margin-bottom: 6px;
+}
+.stat-row {
+  display: flex; align-items: center; gap: 7px; font-size: 10px;
+}
+.stat-icon { font-size: 11px; width: 14px; text-align: center; flex-shrink: 0; }
+.stat-label { color: var(--text2); width: 110px; flex-shrink: 0; letter-spacing: 0.5px; }
+.stat-bar-track {
+  flex: 1; height: 4px; background: var(--border2);
+}
+.stat-bar-fill {
+  height: 100%;
+  transition: width 0.6s ease;
+  box-shadow: 0 0 4px currentColor;
+}
+.stat-val {
+  font-family: var(--font-hud); font-size: 11px;
+  font-weight: 700; width: 36px; text-align: right; flex-shrink: 0;
+}
+
+/* Shimmer animation for exotic/named drops */
+@keyframes shimmer {
+  0%   { box-shadow: inset 0 0 0 0 transparent; }
+  50%  { box-shadow: inset 0 0 12px 0 rgba(255,255,255,0.05); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+.loot-shimmer {
+  animation: lootDrop 0.35s ease, shimmer 2s ease-in-out infinite;
+}
+.loot-item-card { border-left: 3px solid; padding: 12px 14px; margin-bottom: 8px; background: var(--bg3); }
+
+/* ============================================================
+   GEAR SLOTS — icons
+   ============================================================ */
+.gear-slot {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-left: 2px solid var(--border3);
+  padding: 10px; cursor: pointer; transition: all 0.15s;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.gear-slot:hover { border-color: var(--accent); border-left-color: var(--accent); background: var(--bg4); }
+.gear-slot.empty { opacity: 0.45; align-items: center; justify-content: center; min-height: 90px; }
+.gear-slot-icon { font-size: 22px; line-height: 1; }
+.gear-slot-icon.muted { filter: grayscale(1); opacity: 0.4; }
+.gear-slot-label { font-size: 9px; letter-spacing: 2px; color: var(--muted2); text-transform: uppercase; }
+.gear-slot-empty-text { font-size: 9px; color: var(--muted); letter-spacing: 2px; margin-top: 2px; }
+.gear-top-stat { font-size: 10px; margin-top: 4px; font-family: var(--font-hud); }
+
+/* ============================================================
+   STASH — icon column
+   ============================================================ */
+.stash-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 8px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.1s;
+}
+.stash-item:hover { background: var(--bg3); }
+.si-icon { font-size: 20px; flex-shrink: 0; width: 26px; text-align: center; }
+.si-gs { font-family: var(--font-hud); font-size: 18px; font-weight: 700; width: 44px; flex-shrink: 0; }
+.si-info { flex: 1; }
+.si-name { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.si-slot { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+/* Screen flash dopamine */
+@keyframes screenFlash {
+  0%   { opacity: 0.12; }
+  100% { opacity: 0; }
+}
+
+/* GS counter pulse when it ticks up */
+@keyframes gsPulse {
+  0%   { transform: scale(1); color: var(--accent); }
+  50%  { transform: scale(1.3); color: #fff; }
+  100% { transform: scale(1); color: var(--accent); }
+}
+.gs-pop { animation: gsPulse 0.4s ease; }

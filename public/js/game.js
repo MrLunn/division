@@ -81,7 +81,19 @@ const Game = {
     if (!c) return;
     document.getElementById('hud-name').textContent = c.name;
     document.getElementById('hud-level').textContent = `LV.${c.level}`;
-    document.getElementById('hud-gs').textContent = c.gear_score || 0;
+
+    // Animate GS if it changed
+    const gsEl = document.getElementById('hud-gs');
+    const prevGs = parseInt(gsEl?.textContent) || 0;
+    const newGs = c.gear_score || 0;
+    if (gsEl && prevGs !== newGs && prevGs !== 0) {
+      this.animateGSTick(prevGs, newGs);
+      gsEl.classList.remove('gs-pop');
+      void gsEl.offsetWidth; // reflow
+      gsEl.classList.add('gs-pop');
+    } else if (gsEl) {
+      gsEl.textContent = newGs;
+    }
     document.getElementById('hud-credits').textContent = parseInt(c.credits || 0).toLocaleString() + ' ¢';
 
     const hp    = Math.min(100, 50 + (c.gear_score || 0) / 10);
@@ -229,10 +241,21 @@ const Game = {
         lootItems.innerHTML = '';
 
         for (const item of result.loot) {
-          await this.delay(300);
+          // Stagger by rarity — rarer items drop slower for tension
+          const delay = item.rarity === 'exotic' ? 900
+                      : item.rarity === 'named'  ? 700
+                      : item.rarity === 'epic'   ? 500 : 300;
+          await this.delay(delay);
           lootItems.appendChild(this.buildLootCard(item));
+
           if (item.rarity === 'exotic') {
             this.notify(`⚡ EXOTIC DROP: ${item.name}!`, 'exotic', 5000);
+            this.flashScreen('#e67e22');
+          } else if (item.rarity === 'named') {
+            this.notify(`✨ NAMED ITEM: ${item.name}`, 'success', 4000);
+            this.flashScreen('#16a085');
+          } else if (item.rarity === 'epic') {
+            this.notify(`◆ EPIC GEAR: ${item.name}`, '', 2500);
           }
         }
 
@@ -255,34 +278,149 @@ const Game = {
     }
   },
 
+  // Slot icons & display names
+  SLOT_ICONS: {
+    mask:      { icon: '⬡', label: 'MASK' },
+    chest:     { icon: '🛡', label: 'CHEST' },
+    gloves:    { icon: '🤜', label: 'GLOVES' },
+    holster:   { icon: '🔫', label: 'HOLSTER' },
+    legs:      { icon: '🦿', label: 'LEGS' },
+    backpack:  { icon: '🎒', label: 'BACKPACK' },
+    primary:   { icon: '⚔', label: 'RIFLE' },
+    secondary: { icon: '🔫', label: 'SMG / LMG' },
+    sidearm:   { icon: '🔫', label: 'SIDEARM' },
+  },
+
+  STAT_META: {
+    stat_health:      { label: 'HEALTH BONUS',  color: '#2ecc71', icon: '♥' },
+    stat_armor:       { label: 'ARMOR RATING',  color: '#5dade2', icon: '◈' },
+    stat_weapon_dmg:  { label: 'WEAPON DAMAGE', color: '#e74c3c', icon: '⚔' },
+    stat_crit_hit:    { label: 'CRIT CHANCE',   color: '#f4a116', icon: '◎' },
+    stat_crit_dmg:    { label: 'CRIT DAMAGE',   color: '#e67e22', icon: '💥' },
+    stat_skill_haste: { label: 'SKILL HASTE',   color: '#af7ac5', icon: '⚡' },
+  },
+
   buildLootCard(item) {
     const div = document.createElement('div');
     div.className = 'loot-item-card';
     div.style.borderLeftColor = this.rarityColor(item.rarity);
+
+    const slotInfo = this.SLOT_ICONS[item.slot] || { icon: '◆', label: (item.slot || '').toUpperCase() };
+    const statsHtml = this.renderStatBars(item.stats);
+    const isWeapon = ['primary','secondary','sidearm'].includes(item.slot);
+
     div.innerHTML = `
-      <div class="lic-name" style="color:${this.rarityColor(item.rarity)}">${item.name}
-        <span class="rarity-tag rt-${item.rarity}">${item.rarity.toUpperCase()}</span>
+      <div class="lic-header">
+        <div class="lic-slot-icon" style="color:${this.rarityColor(item.rarity)}">${slotInfo.icon}</div>
+        <div class="lic-header-info">
+          <div class="lic-name" style="color:${this.rarityColor(item.rarity)}">${item.name}
+            <span class="rarity-tag rt-${item.rarity}">${item.rarity.toUpperCase()}</span>
+          </div>
+          <div class="lic-slot">${slotInfo.label} · ${isWeapon ? 'WEAPON' : 'GEAR'}</div>
+        </div>
+        <div class="lic-gs-block">
+          <div class="lic-gs">${item.gear_score}</div>
+          <div style="font-size:9px;color:var(--muted2);letter-spacing:1px">GS</div>
+        </div>
       </div>
-      <div class="lic-slot">${item.slot?.toUpperCase()} SLOT</div>
-      <div class="lic-gs">${item.gear_score}</div>
-      ${item.talent ? `<div class="lic-talent">⚡ TALENT: ${item.talent}</div>` : ''}
-      ${item.stats ? `<div class="lic-stats">${this.formatStats(item.stats)}</div>` : ''}
+      ${item.talent ? `<div class="lic-talent">⚡ ${item.talent}</div>` : ''}
+      ${statsHtml}
+      ${item.flavor_text ? `<div class="lic-flavor">"${item.flavor_text}"</div>` : ''}
     `;
+
+    if (item.rarity === 'exotic' || item.rarity === 'named') {
+      div.classList.add('loot-shimmer');
+    }
     return div;
+  },
+
+  renderStatBars(stats) {
+    if (!stats) return '';
+    const active = Object.entries(stats).filter(([, v]) => v > 0);
+    if (active.length === 0) return '';
+    return `<div class="lic-stats-grid">${
+      active.map(([key, val]) => {
+        const meta = this.STAT_META[key] || { label: key, color: '#888', icon: '◆' };
+        const pct = Math.min(100, (val / 35) * 100);
+        return `<div class="stat-row">
+          <span class="stat-icon" style="color:${meta.color}">${meta.icon}</span>
+          <span class="stat-label">${meta.label}</span>
+          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%;background:${meta.color}"></div></div>
+          <span class="stat-val" style="color:${meta.color}">+${val}%</span>
+        </div>`;
+      }).join('')
+    }</div>`;
   },
 
   formatStats(stats) {
     if (!stats) return '';
     return Object.entries(stats)
       .filter(([, v]) => v > 0)
-      .map(([k, v]) => `+${v}% ${k.replace('stat_', '').replace(/_/g, ' ').toUpperCase()}`)
+      .map(([k, v]) => `+${v}% ${k.replace('stat_','').replace(/_/g,' ').toUpperCase()}`)
       .join('  ');
   },
 
   rarityColor(rarity) {
-    const colors = { common: '#556070', rare: '#0070dd', epic: '#a335ee', named: '#00ccff', exotic: '#ff8000' };
-    return colors[rarity] || '#888';
+    const c = { common: '#556070', rare: '#2980b9', epic: '#8e44ad', named: '#16a085', exotic: '#e67e22' };
+    return c[rarity] || '#888';
   },
+
+  renderEquipped(items) {
+    const slots = ['mask','chest','gloves','holster','legs','backpack','primary','secondary','sidearm'];
+    const el = document.getElementById('equipped-grid');
+    el.innerHTML = slots.map(slot => {
+      const info = this.SLOT_ICONS[slot] || { icon: '◆', label: slot.toUpperCase() };
+      const item = items.find(i => i.slot === slot);
+      if (!item) {
+        return `<div class="gear-slot empty">
+          <div class="gear-slot-icon muted">${info.icon}</div>
+          <div class="gear-slot-label">${info.label}</div>
+          <div class="gear-slot-empty-text">EMPTY</div>
+        </div>`;
+      }
+      const topStat = item.stats
+        ? Object.entries(item.stats).filter(([,v]) => v > 0).sort(([,a],[,b]) => b - a)[0]
+        : null;
+      const m = topStat ? this.STAT_META[topStat[0]] : null;
+      const statLine = m
+        ? `<div class="gear-top-stat" style="color:${m.color}">${m.icon} +${topStat[1]}% ${m.label}</div>`
+        : '';
+      return `<div class="gear-slot" onclick="window.Game.showItem('${item.id}','${item.name}','${item.rarity}',${item.gear_score},true,'${item.slot||slot}')">
+        <div class="gear-slot-icon" style="color:${this.rarityColor(item.rarity)}">${info.icon}</div>
+        <div class="gear-slot-label">${info.label}</div>
+        <div class="gs-item-name" style="color:${this.rarityColor(item.rarity)}">${item.name}</div>
+        <div class="gs-item-gs">${item.gear_score}</div>
+        <span class="rarity-tag rt-${item.rarity}">${item.rarity.toUpperCase()}</span>
+        ${statLine}
+      </div>`;
+    }).join('');
+  },
+
+  renderStash(items) {
+    const el = document.getElementById('stash-list');
+    document.getElementById('stash-count').textContent = `${items.length} items`;
+    if (items.length === 0) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:16px 0;text-align:center">Run missions to earn loot</div>';
+      return;
+    }
+    el.innerHTML = items.map(item => {
+      const info = this.SLOT_ICONS[item.slot] || { icon: '◆', label: (item.slot||'').toUpperCase() };
+      const topStat = item.stats
+        ? Object.entries(item.stats).filter(([,v]) => v > 0).sort(([,a],[,b]) => b - a)[0]
+        : null;
+      const m = topStat ? this.STAT_META[topStat[0]] : null;
+      return `<div class="stash-item" onclick="window.Game.showItem('${item.id}','${item.name}','${item.rarity}',${item.gear_score},false,'${item.slot}')">
+        <div class="si-icon" style="color:${this.rarityColor(item.rarity)}">${info.icon}</div>
+        <div class="si-gs" style="color:${this.rarityColor(item.rarity)}">${item.gear_score}</div>
+        <div class="si-info">
+          <div class="si-name" style="color:${this.rarityColor(item.rarity)}">${item.name}</div>
+          <div class="si-slot">${info.label} <span class="rarity-tag rt-${item.rarity}">${item.rarity.toUpperCase()}</span></div>
+          ${m ? `<div style="font-size:10px;color:${m.color};margin-top:2px">${m.icon} +${topStat[1]}% ${m.label}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  },
+
 
   // ============================================================
   // INVENTORY VIEW
@@ -693,6 +831,27 @@ const Game = {
   // ============================================================
   // UTILS
   // ============================================================
+  // Dopamine: brief colour flash over the whole screen (exotic/named drops)
+  flashScreen(color) {
+    const flash = document.createElement('div');
+    flash.style.cssText = `position:fixed;inset:0;background:${color};opacity:0.12;z-index:9999;pointer-events:none;animation:screenFlash 0.5s ease forwards`;
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 500);
+  },
+
+  // Dopamine: tick up the GS counter visually
+  animateGSTick(from, to) {
+    const el = document.getElementById('hud-gs');
+    if (!el || from === to) return;
+    const step = to > from ? 1 : -1;
+    let cur = from;
+    const interval = setInterval(() => {
+      cur += step;
+      el.textContent = cur;
+      if (cur === to) clearInterval(interval);
+    }, 40);
+  },
+
   delay: (ms) => new Promise(r => setTimeout(r, ms)),
 };
 
