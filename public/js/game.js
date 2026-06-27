@@ -334,8 +334,18 @@ const Game = {
     return div;
   },
 
-  renderStatBars(stats) {
-    if (!stats) return '';
+  renderStatBars(itemOrStats) {
+    if (!itemOrStats) return '';
+    // Normalise: flat DB row has stat_* keys directly; loot card has a stats sub-object
+    const STAT_KEYS = ['stat_health','stat_armor','stat_weapon_dmg','stat_crit_hit','stat_crit_dmg','stat_skill_haste'];
+    let stats = {};
+    if (itemOrStats.stat_health !== undefined || itemOrStats.stat_armor !== undefined) {
+      // Flat DB row
+      STAT_KEYS.forEach(k => { if (itemOrStats[k] > 0) stats[k] = itemOrStats[k]; });
+    } else {
+      // Nested stats object
+      stats = itemOrStats;
+    }
     const active = Object.entries(stats).filter(([, v]) => v > 0);
     if (active.length === 0) return '';
     return `<div class="lic-stats-grid">${
@@ -385,7 +395,7 @@ const Game = {
       const statLine = m
         ? `<div class="gear-top-stat" style="color:${m.color}">${m.icon} +${topStat[1]}% ${m.label}</div>`
         : '';
-      return `<div class="gear-slot" onclick="window.Game.showItem('${item.id}','${item.name}','${item.rarity}',${item.gear_score},true,'${item.slot||slot}')">
+      return `<div class="gear-slot" onclick="window.Game.showItem('${item.id}')">
         <div class="gear-slot-icon" style="color:${this.rarityColor(item.rarity)}">${info.icon}</div>
         <div class="gear-slot-label">${info.label}</div>
         <div class="gs-item-name" style="color:${this.rarityColor(item.rarity)}">${item.name}</div>
@@ -409,7 +419,7 @@ const Game = {
         ? Object.entries(item.stats).filter(([,v]) => v > 0).sort(([,a],[,b]) => b - a)[0]
         : null;
       const m = topStat ? this.STAT_META[topStat[0]] : null;
-      return `<div class="stash-item" onclick="window.Game.showItem('${item.id}','${item.name}','${item.rarity}',${item.gear_score},false,'${item.slot}')">
+      return `<div class="stash-item" onclick="window.Game.showItem('${item.id}')">
         <div class="si-icon" style="color:${this.rarityColor(item.rarity)}">${info.icon}</div>
         <div class="si-gs" style="color:${this.rarityColor(item.rarity)}">${item.gear_score}</div>
         <div class="si-info">
@@ -428,6 +438,7 @@ const Game = {
   async loadInventoryView() {
     try {
       const inv = await API.inventory.get();
+      this._inventory = inv;
       document.getElementById('inv-gs-display').textContent = `GS ${inv.gearScore}`;
       this.renderEquipped(inv.equipped);
       this.renderStash(inv.stash);
@@ -436,66 +447,71 @@ const Game = {
     }
   },
 
-  renderEquipped(items) {
-    const slots = ['mask', 'chest', 'gloves', 'holster', 'legs', 'backpack', 'primary', 'secondary', 'sidearm'];
-    const el = document.getElementById('equipped-grid');
-    el.innerHTML = slots.map(slot => {
-      const item = items.find(i => i.slot === slot);
-      if (!item) {
-        return `<div class="gear-slot empty" style="color:var(--muted);font-size:10px;text-align:center;justify-content:center;display:flex;align-items:center">
-          <div><div style="letter-spacing:2px">${slot.toUpperCase()}</div><div style="font-size:9px;color:var(--muted)">EMPTY</div></div>
-        </div>`;
-      }
-      return `<div class="gear-slot" onclick="window.Game.showItem('${item.id}', '${item.name}', '${item.rarity}', ${item.gear_score}, true, '${item.slot || slot}')">
-        <div class="gs-label-sm">${slot.toUpperCase()}</div>
-        <div class="gs-item-name" style="color:${this.rarityColor(item.rarity)}">${item.name}</div>
-        <div><span class="gs-item-gs">${item.gear_score}</span></div>
-        <span class="rarity-tag rt-${item.rarity}">${item.rarity.toUpperCase()}</span>
-      </div>`;
-    }).join('');
-  },
 
-  renderStash(items) {
-    const el = document.getElementById('stash-list');
-    document.getElementById('stash-count').textContent = `${items.length} items`;
-    if (items.length === 0) {
-      el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:12px 0">Run missions to earn loot</div>';
-      return;
-    }
-    el.innerHTML = items.map(item => `
-      <div class="stash-item" onclick="window.Game.showItem('${item.id}', '${item.name}', '${item.rarity}', ${item.gear_score}, false, '${item.slot}')">
-        <div class="si-gs" style="color:${this.rarityColor(item.rarity)}">${item.gear_score}</div>
-        <div class="si-info">
-          <div class="si-name" style="color:${this.rarityColor(item.rarity)}">${item.name}</div>
-          <div class="si-slot">${item.slot?.toUpperCase()} <span class="rarity-tag rt-${item.rarity}">${item.rarity.toUpperCase()}</span></div>
-        </div>
-      </div>
-    `).join('');
-  },
 
-  showItem(id, name, rarity, gs, isEquipped, slot) {
+
+
+  showItem(id) {
+    const all = [...(this._inventory?.equipped || []), ...(this._inventory?.stash || [])];
+    const item = all.find(i => i.id === id);
+    if (!item) return;
+
     this.currentItemId = id;
-    const modal = document.getElementById('item-modal');
-    const content = document.getElementById('item-modal-content');
+    const modal    = document.getElementById('item-modal');
+    const content  = document.getElementById('item-modal-content');
     const equipBtn = document.getElementById('item-equip-btn');
-    const sellBtn = document.getElementById('item-sell-btn');
+    const sellBtn  = document.getElementById('item-sell-btn');
+
+    const info = this.SLOT_ICONS[item.slot] || { icon: '◆', label: (item.slot||'').toUpperCase() };
+    const isEquipped = item.is_equipped;
+    const isWeapon = ['primary','secondary','sidearm'].includes(item.slot);
+    const rarityValues = { common: 50, rare: 200, epic: 600, named: 1500, exotic: 5000 };
+    const sellValue = (rarityValues[item.rarity] || 50) + Math.floor(item.gear_score * 2);
+    const statsHtml = this.renderStatBars(item);
 
     content.innerHTML = `
-      <div class="item-detail-header">
-        <div>
-          <div style="font-size:10px;letter-spacing:2px;color:var(--muted)">${slot?.toUpperCase()} SLOT</div>
-          <div style="font-size:20px;font-weight:700;color:${this.rarityColor(rarity)};margin:4px 0">${name}</div>
-          <span class="rarity-tag rt-${rarity}">${rarity.toUpperCase()}</span>
-          ${isEquipped ? '<span style="margin-left:6px;font-size:10px;color:var(--green)">● EQUIPPED</span>' : ''}
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px">
+        <div style="font-size:44px;line-height:1;color:${this.rarityColor(item.rarity)}">${info.icon}</div>
+        <div style="flex:1">
+          <div style="font-size:9px;letter-spacing:3px;color:var(--muted2)">${info.label} · ${isWeapon ? 'WEAPON' : 'GEAR'}${isEquipped ? ' · <span style=\'color:var(--health)\'>● EQUIPPED</span>' : ''}</div>
+          <div style="font-size:20px;font-weight:700;color:${this.rarityColor(item.rarity)};margin:4px 0">${item.name}</div>
+          <span class="rarity-tag rt-${item.rarity}">${item.rarity.toUpperCase()}</span>
+          ${item.talent ? `<div style="margin-top:8px;font-size:11px;color:var(--cyan);padding:4px 8px;background:rgba(26,188,156,0.08);border-left:2px solid var(--cyan)">⚡ ${item.talent}</div>` : ''}
         </div>
-        <div class="item-gs-big">${gs}</div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:var(--font-hud);font-size:42px;font-weight:700;color:var(--accent);line-height:1">${item.gear_score}</div>
+          <div style="font-size:9px;color:var(--muted2);letter-spacing:2px">GEAR SCORE</div>
+          <div style="font-size:12px;color:var(--green);margin-top:6px;font-family:var(--font-hud)">${sellValue.toLocaleString()} ¢</div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px">SELL VALUE</div>
+        </div>
       </div>
+      <div style="font-size:9px;letter-spacing:3px;color:var(--muted2);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">STATS</div>
+      ${statsHtml || '<div style="color:var(--muted);font-size:11px;padding:6px 0">No bonus stats on this item</div>'}
+      ${item.flavor_text ? `<div style="margin-top:12px;font-size:10px;color:var(--muted);font-style:italic;border-top:1px solid var(--border);padding-top:8px">"${item.flavor_text}"</div>` : ''}
     `;
-    equipBtn.textContent = isEquipped ? 'UNEQUIP' : 'EQUIP';
+
+    equipBtn.textContent = isEquipped ? 'UNEQUIP' : `EQUIP (${(item.slot||'').toUpperCase()})`;
     equipBtn.onclick = isEquipped ? () => this.unequipItem(id) : () => this.equipCurrentItem();
-    sellBtn.style.display = isEquipped ? 'none' : 'block';
+    sellBtn.style.display = isEquipped ? 'none' : 'inline-block';
     modal.style.display = 'flex';
   },
+
+  async sellAllJunk() {
+    // Sells all common + rare unequipped items by default
+    const rarity = 'rare'; // sells common + rare
+    if (!confirm(`Sell all Common & Rare items from your stash?\nEpic, Named and Exotic items are kept.`)) return;
+    try {
+      const result = await API.inventory.sellAll(rarity);
+      this.notify(result.message, 'success');
+      this.loadInventoryView();
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+    } catch (e) {
+      this.notify(e.message, 'error');
+    }
+  },
+
 
   async equipCurrentItem() {
     try {

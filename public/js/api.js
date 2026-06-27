@@ -41,11 +41,12 @@ const API = {
 
   // INVENTORY
   inventory: {
-    get:       ()   => API.get('/inventory'),
-    equip:     (id) => API.post(`/inventory/${id}/equip`),
-    unequip:   (id) => API.post(`/inventory/${id}/unequip`),
-    sell:      (id) => API.post(`/inventory/${id}/sell`),
-    openCache: (type) => API.post('/inventory/open-cache', { type }),
+    get:       ()       => API.get('/inventory'),
+    equip:     (id)     => API.post(`/inventory/${id}/equip`),
+    unequip:   (id)     => API.post(`/inventory/${id}/unequip`),
+    sell:      (id)     => API.post(`/inventory/${id}/sell`),
+    sellAll:   (rarity) => API.post('/inventory/sell-all', { rarity }),
+    openCache: (type)   => API.post('/inventory/open-cache', { type }),
   },
 
   // CLANS

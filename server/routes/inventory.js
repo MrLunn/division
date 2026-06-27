@@ -76,6 +76,47 @@ router.post('/:itemId/equip', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/inventory/sell-all — sell all unequipped items
+router.post('/sell-all', requireAuth, async (req, res) => {
+  try {
+    const { rarity } = req.body; // optional filter: only sell up to this rarity
+    const rarityValues = { common: 50, rare: 200, epic: 600, named: 1500, exotic: 5000 };
+    const rarityOrder  = ['common', 'rare', 'epic', 'named', 'exotic'];
+    const maxIdx = rarity ? rarityOrder.indexOf(rarity) : rarityOrder.indexOf('rare'); // default: sell common+rare only
+
+    // Fetch all unequipped items up to max rarity
+    const itemsResult = await db.query(`
+      SELECT i.id, i.gear_score, d.rarity, d.name
+      FROM inventory i
+      JOIN item_definitions d ON d.id = i.item_def_id
+      WHERE i.character_id = $1 AND i.is_equipped = false
+    `, [req.character.id]);
+
+    const toSell = itemsResult.rows.filter(item =>
+      rarityOrder.indexOf(item.rarity) <= maxIdx
+    );
+
+    if (toSell.length === 0) return res.json({ message: 'Nothing to sell', credits: 0, count: 0 });
+
+    const totalCredits = toSell.reduce((sum, item) =>
+      sum + (rarityValues[item.rarity] || 50) + Math.floor(item.gear_score * 2), 0
+    );
+
+    const ids = toSell.map(i => i.id);
+    await db.query(`DELETE FROM inventory WHERE id = ANY($1)`, [ids]);
+    await db.query(`UPDATE characters SET credits = credits + $1 WHERE id = $2`, [totalCredits, req.character.id]);
+
+    res.json({
+      message: `Sold ${toSell.length} items for ${totalCredits.toLocaleString()} Credits`,
+      credits: totalCredits,
+      count: toSell.length,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to sell items' });
+  }
+});
+
 // POST /api/inventory/:itemId/sell — sell for credits
 router.post('/:itemId/sell', requireAuth, async (req, res) => {
   const { itemId } = req.params;
