@@ -278,17 +278,99 @@ const Game = {
     }
   },
 
-  // Slot icons & display names
+  // Custom SVG icons — tactical/military line art, no emoji
   SLOT_ICONS: {
-    mask:      { icon: '⬡', label: 'MASK' },
-    chest:     { icon: '🛡', label: 'CHEST' },
-    gloves:    { icon: '🤜', label: 'GLOVES' },
-    holster:   { icon: '🔫', label: 'HOLSTER' },
-    legs:      { icon: '🦿', label: 'LEGS' },
-    backpack:  { icon: '🎒', label: 'BACKPACK' },
-    primary:   { icon: '⚔', label: 'RIFLE' },
-    secondary: { icon: '🔫', label: 'SMG / LMG' },
-    sidearm:   { icon: '🔫', label: 'SIDEARM' },
+    mask: {
+      label: 'MASK',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3C7 3 4 6 4 10v5c0 2 1.5 4 3 5l1 1h8l1-1c1.5-1 3-3 3-5v-5c0-4-3-7-8-7z"/>
+        <path d="M8 11c0 1 .8 2 1.5 2s1.5-1 1.5-2"/>
+        <path d="M13 11c0 1 .8 2 1.5 2s1.5-1 1.5-2"/>
+        <path d="M9 16h6"/>
+        <path d="M4 10h2M18 10h2"/>
+      </svg>`
+    },
+    chest: {
+      label: 'CHEST',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 4h14l1 4H4L5 4z"/>
+        <path d="M4 8v11a1 1 0 001 1h14a1 1 0 001-1V8"/>
+        <path d="M9 8v4M15 8v4"/>
+        <path d="M10 12h4"/>
+        <path d="M7 14h2M15 14h2"/>
+        <path d="M6 17h12"/>
+      </svg>`
+    },
+    gloves: {
+      label: 'GLOVES',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 20V10.5a1.5 1.5 0 013 0V15"/>
+        <path d="M11 13V9a1.5 1.5 0 013 0v4"/>
+        <path d="M14 11.5V10a1.5 1.5 0 013 0v5"/>
+        <path d="M17 13.5v-2a1.5 1.5 0 013 0V17a6 6 0 01-6 6H9a6 6 0 01-6-6v-3.5"/>
+        <path d="M3 13.5V10a1.5 1.5 0 013 0V20"/>
+      </svg>`
+    },
+    holster: {
+      label: 'HOLSTER',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="13" height="8" rx="1"/>
+        <path d="M16 7h3a1 1 0 011 1v1a1 1 0 01-1 1h-3"/>
+        <path d="M8 11v10l2 1 2-1V11"/>
+        <path d="M5 7h5M5 5h3"/>
+      </svg>`
+    },
+    legs: {
+      label: 'LEGS',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 2h10v8l-2 6-1 3a1 1 0 01-2 0l-1-3-2-6V2z"/>
+        <path d="M7 2L5 14l1 4 2 4h2"/>
+        <path d="M17 2l2 12-1 4-2 4h-2"/>
+        <path d="M7 8h10"/>
+        <path d="M9 2v6M15 2v6"/>
+      </svg>`
+    },
+    backpack: {
+      label: 'BACKPACK',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="7" width="16" height="14" rx="2"/>
+        <path d="M8 7V5a4 4 0 018 0v2"/>
+        <path d="M9 7v14M15 7v14"/>
+        <path d="M4 13h4M16 13h4"/>
+        <rect x="9" y="12" width="6" height="5" rx="1"/>
+      </svg>`
+    },
+    primary: {
+      label: 'PRIMARY',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 14h14v-4H2v4z"/>
+        <path d="M16 13h2l3-1v-2l-3-1h-2"/>
+        <path d="M6 10V8l-1-1H4v5h1l1-1v-2zM10 10V8"/>
+        <path d="M8 14v3h2l1-3"/>
+        <path d="M14 10h-2"/>
+      </svg>`
+    },
+    secondary: {
+      label: 'SECONDARY',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 13h10v-3H2v3z"/>
+        <path d="M12 12.5h2l2-.5v-1l-2-.5h-2"/>
+        <path d="M4 10V8.5L3 8H2v4h1l1-.5V10zM7 10V8.5"/>
+        <path d="M6 13v2.5h2l.5-2.5"/>
+        <path d="M16 11.5h4l2-.5v-1l-2-.5h-4"/>
+      </svg>`
+    },
+    sidearm: {
+      label: 'SIDEARM',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 8h11l3 2v2H4V8z"/>
+        <path d="M18 10h2v1.5"/>
+        <path d="M7 12v5h3v-3l1-2"/>
+        <path d="M4 8V6h3v2"/>
+        <path d="M13 8v4"/>
+        <path d="M6 9.5h5"/>
+      </svg>`
+    },
   },
 
   STAT_META: {
@@ -311,7 +393,7 @@ const Game = {
 
     div.innerHTML = `
       <div class="lic-header">
-        <div class="lic-slot-icon" style="color:${this.rarityColor(item.rarity)}">${slotInfo.icon}</div>
+        <div class="lic-slot-icon" style="color:${this.rarityColor(item.rarity)};width:36px;height:36px;flex-shrink:0">${slotInfo.icon}</div>
         <div class="lic-header-info">
           <div class="lic-name" style="color:${this.rarityColor(item.rarity)}">${item.name}
             <span class="rarity-tag rt-${item.rarity}">${item.rarity.toUpperCase()}</span>
@@ -383,7 +465,7 @@ const Game = {
       const item = items.find(i => i.slot === slot);
       if (!item) {
         return `<div class="gear-slot empty">
-          <div class="gear-slot-icon muted">${info.icon}</div>
+          <div class="gear-slot-icon" style="width:32px;height:32px;opacity:0.25;color:var(--muted2)">${info.icon}</div>
           <div class="gear-slot-label">${info.label}</div>
           <div class="gear-slot-empty-text">EMPTY</div>
         </div>`;
@@ -396,7 +478,7 @@ const Game = {
         ? `<div class="gear-top-stat" style="color:${m.color}">${m.icon} +${topStat[1]}% ${m.label}</div>`
         : '';
       return `<div class="gear-slot" onclick="window.Game.showItem('${item.id}')">
-        <div class="gear-slot-icon" style="color:${this.rarityColor(item.rarity)}">${info.icon}</div>
+        <div class="gear-slot-icon" style="width:32px;height:32px;color:${this.rarityColor(item.rarity)}">${info.icon}</div>
         <div class="gear-slot-label">${info.label}</div>
         <div class="gs-item-name" style="color:${this.rarityColor(item.rarity)}">${item.name}</div>
         <div class="gs-item-gs">${item.gear_score}</div>
@@ -420,7 +502,7 @@ const Game = {
         : null;
       const m = topStat ? this.STAT_META[topStat[0]] : null;
       return `<div class="stash-item" onclick="window.Game.showItem('${item.id}')">
-        <div class="si-icon" style="color:${this.rarityColor(item.rarity)}">${info.icon}</div>
+        <div class="si-icon" style="width:28px;height:28px;flex-shrink:0;color:${this.rarityColor(item.rarity)}">${info.icon}</div>
         <div class="si-gs" style="color:${this.rarityColor(item.rarity)}">${item.gear_score}</div>
         <div class="si-info">
           <div class="si-name" style="color:${this.rarityColor(item.rarity)}">${item.name}</div>
@@ -471,7 +553,7 @@ const Game = {
 
     content.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px">
-        <div style="font-size:44px;line-height:1;color:${this.rarityColor(item.rarity)}">${info.icon}</div>
+        <div style="width:52px;height:52px;flex-shrink:0;color:${this.rarityColor(item.rarity)}">${info.icon}</div>
         <div style="flex:1">
           <div style="font-size:9px;letter-spacing:3px;color:var(--muted2)">${info.label} · ${isWeapon ? 'WEAPON' : 'GEAR'}${isEquipped ? ' · <span style=\'color:var(--health)\'>● EQUIPPED</span>' : ''}</div>
           <div style="font-size:20px;font-weight:700;color:${this.rarityColor(item.rarity)};margin:4px 0">${item.name}</div>
