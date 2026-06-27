@@ -219,6 +219,7 @@ CREATE INDEX IF NOT EXISTS idx_clan_members_clan ON clan_members(clan_id);
 `;
 
 const seedMissions = `
+DELETE FROM mission_runs;
 DELETE FROM missions;
 INSERT INTO missions (name, description, type, difficulty, map_x, map_y, min_gs, xp_reward, credit_reward, loot_rolls, loot_bonus_rarity, duration_secs) VALUES
 ('Aker Brygge Pier',    'Secure the waterfront — Rogue agents control the Aker Brygge ferry terminals.',      'mission',    'hard',        0.28, 0.58, 100, 2400, 1200, 3, 'rare',   45),
