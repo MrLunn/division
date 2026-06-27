@@ -301,46 +301,59 @@ INSERT INTO missions (name, description, type, difficulty, map_x, map_y, min_gs,
 `;
 
 const seedItems = `
+DELETE FROM inventory;
+DELETE FROM item_definitions;
 INSERT INTO item_definitions (name, slot, rarity, base_gs, gs_variance, is_named, is_exotic, talent, flavor_text) VALUES
--- EXOTICS
-('Eagle Bearer',   'primary',  'exotic', 155, 0, false, true,  'Tenacity',       'The eagle always finds its prey.'),
-('Nemesis',        'primary',  'exotic', 155, 0, false, true,  'Nemesis',        'Justice, delayed but never denied.'),
-('Merciless',      'primary',  'exotic', 155, 0, false, true,  'Binary Trigger', 'No mercy for the wicked.'),
-('Chameleon',      'primary',  'exotic', 155, 0, false, true,  'Adaptive Instincts','Adapt or die.'),
-('Pestilence',     'primary',  'exotic', 155, 0, false, true,  'Plague of the Outcasts','Spread the sickness.'),
-('The Chatterbox', 'primary',  'exotic', 155, 0, false, true,  'Incessant Chatter','Never stops talking. Never misses.'),
-('Bullet King',    'primary',  'exotic', 155, 0, false, true,  'Never Empty',    'The mag never runs dry.'),
--- NAMED
-('Vanguard Faceplate', 'mask',     'named', 152, 2, true, false, 'Protector',   'Shield those who cannot shield themselves.'),
-('Atlas Backplate',    'chest',    'named', 150, 3, true, false, 'Armor Kit',   'Issued to field commanders only.'),
-('Gunslinger Rig',     'holster',  'named', 148, 2, true, false, 'Fast Hands',  'Draw faster. Survive longer.'),
-('Tactician Kneepads', 'legs',     'named', 150, 2, true, false, 'Deft Hands',  'Tactical movement under fire.'),
-('Striker Gloves',     'gloves',   'named', 148, 3, true, false, 'Killing Machine','Every hit counts double.'),
-('Atlas Backpack',     'backpack', 'named', 150, 2, true, false, 'Vigilance',   'Field-tested. Division-approved.'),
--- EPIC
-('Overlord Chest',     'chest',    'epic',  148, 5, false, false, 'Unbreakable', NULL),
-('Operative Mask',     'mask',     'epic',  145, 5, false, false, 'Focus',       NULL),
-('Assault Kneepads',   'legs',     'epic',  144, 5, false, false, 'Tenacity',    NULL),
-('Marksman Gloves',    'gloves',   'epic',  146, 5, false, false, 'Precision',   NULL),
-('Combat Holster',     'holster',  'epic',  143, 5, false, false, 'Swift',       NULL),
-('Enforcer Backpack',  'backpack', 'epic',  145, 5, false, false, 'Hardened',    NULL),
-('Punisher Rifle',     'primary',  'epic',  148, 4, false, false, 'Strained',    NULL),
-('Vector SMG',         'secondary','epic',  148, 4, false, false, 'Killer',      NULL),
--- RARE / HIGH-END
-('Operator Chest',    'chest',    'rare',  140, 8, false, false, NULL, NULL),
-('Field Mask',        'mask',     'rare',  138, 8, false, false, NULL, NULL),
-('Ranger Legs',       'legs',     'rare',  137, 8, false, false, NULL, NULL),
-('Assault Gloves',    'gloves',   'rare',  135, 8, false, false, NULL, NULL),
-('Patrol Holster',    'holster',  'rare',  133, 8, false, false, NULL, NULL),
-('Scout Backpack',    'backpack', 'rare',  136, 8, false, false, NULL, NULL),
-('M4 Carbine',        'primary',  'rare',  140, 6, false, false, NULL, NULL),
-('Glock Sidearm',     'sidearm',  'rare',  138, 6, false, false, NULL, NULL),
--- COMMON / UNCOMMON
-('Standard Vest',     'chest',    'common',100,15, false, false, NULL, NULL),
-('Standard Mask',     'mask',     'common', 95,15, false, false, NULL, NULL),
-('Patrol Legs',       'legs',     'common', 92,15, false, false, NULL, NULL),
-('Basic Gloves',      'gloves',   'common', 90,15, false, false, NULL, NULL),
-('Pistol Mk.1',       'sidearm',  'common', 95,10, false, false, NULL, NULL)
+-- EXOTICS (GS 490-500, fixed)
+('Eagle Bearer',   'primary',  'exotic', 500, 0, false, true,  'Tenacity',            'The eagle always finds its prey.'),
+('Nemesis',        'primary',  'exotic', 500, 0, false, true,  'Nemesis',             'Justice, delayed but never denied.'),
+('Merciless',      'primary',  'exotic', 500, 0, false, true,  'Binary Trigger',      'No mercy for the wicked.'),
+('Chameleon',      'primary',  'exotic', 495, 0, false, true,  'Adaptive Instincts',  'Adapt or die.'),
+('Pestilence',     'primary',  'exotic', 495, 0, false, true,  'Plague of the Outcasts','Spread the sickness.'),
+('The Chatterbox', 'primary',  'exotic', 490, 0, false, true,  'Incessant Chatter',   'Never stops talking. Never misses.'),
+('Bullet King',    'primary',  'exotic', 490, 0, false, true,  'Never Empty',         'The mag never runs dry.'),
+('Providence Mask','mask',     'exotic', 500, 0, false, true,  'Scholar',             'Knowledge is the ultimate weapon.'),
+('Contractor Gloves','gloves', 'exotic', 495, 0, false, true,  'Contractor',          'Every contract fulfilled.'),
+-- NAMED (GS 440-480)
+('Vanguard Faceplate', 'mask',     'named', 460, 10, true, false, 'Protector',     'Shield those who cannot shield themselves.'),
+('Atlas Backplate',    'chest',    'named', 470, 10, true, false, 'Armor Kit',     'Issued to field commanders only.'),
+('Gunslinger Rig',     'holster',  'named', 455, 10, true, false, 'Fast Hands',    'Draw faster. Survive longer.'),
+('Tactician Kneepads', 'legs',     'named', 460, 10, true, false, 'Deft Hands',    'Tactical movement under fire.'),
+('Striker Gloves',     'gloves',   'named', 455, 10, true, false, 'Killing Machine','Every hit counts double.'),
+('Atlas Backpack',     'backpack', 'named', 465, 10, true, false, 'Vigilance',     'Field-tested. Division-approved.'),
+('NordRifle Mk.IV',    'primary',  'named', 475, 8,  true, false, 'Overwatch',     'Patience rewarded.'),
+('SHD Sidearm Pro',    'sidearm',  'named', 450, 8,  true, false, 'Precision',     'Issue weapon. Never returned.'),
+('Berserker SMG',      'secondary','named', 465, 8,  true, false, 'Bloodlust',     'The more it hurts, the faster it fires.'),
+-- EPIC (GS 350-420)
+('Overlord Chest',     'chest',    'epic',  400, 25, false, false, 'Unbreakable', NULL),
+('Operative Mask',     'mask',     'epic',  385, 25, false, false, 'Focus',       NULL),
+('Assault Kneepads',   'legs',     'epic',  375, 25, false, false, 'Tenacity',    NULL),
+('Marksman Gloves',    'gloves',   'epic',  380, 25, false, false, 'Precision',   NULL),
+('Combat Holster',     'holster',  'epic',  370, 25, false, false, 'Swift',       NULL),
+('Enforcer Backpack',  'backpack', 'epic',  390, 25, false, false, 'Hardened',    NULL),
+('Punisher Rifle',     'primary',  'epic',  410, 20, false, false, 'Strained',    NULL),
+('Vector SMG',         'secondary','epic',  405, 20, false, false, 'Killer',      NULL),
+('SHD Sidearm',        'sidearm',  'epic',  380, 20, false, false, 'Responsive',  NULL),
+-- RARE / HIGH-END (GS 220-320)
+('Operator Chest',    'chest',    'rare',  270, 40, false, false, NULL, NULL),
+('Field Mask',        'mask',     'rare',  255, 40, false, false, NULL, NULL),
+('Ranger Legs',       'legs',     'rare',  250, 40, false, false, NULL, NULL),
+('Assault Gloves',    'gloves',   'rare',  245, 40, false, false, NULL, NULL),
+('Patrol Holster',    'holster',  'rare',  240, 40, false, false, NULL, NULL),
+('Scout Backpack',    'backpack', 'rare',  255, 40, false, false, NULL, NULL),
+('M4 Carbine',        'primary',  'rare',  280, 35, false, false, NULL, NULL),
+('Glock Sidearm',     'sidearm',  'rare',  260, 35, false, false, NULL, NULL),
+('MP5 SMG',           'secondary','rare',  265, 35, false, false, NULL, NULL),
+-- COMMON / UNCOMMON (GS 100-200)
+('Standard Vest',     'chest',    'common', 150, 40, false, false, NULL, NULL),
+('Standard Mask',     'mask',     'common', 140, 40, false, false, NULL, NULL),
+('Patrol Legs',       'legs',     'common', 135, 40, false, false, NULL, NULL),
+('Basic Gloves',      'gloves',   'common', 130, 40, false, false, NULL, NULL),
+('Pistol Mk.1',       'sidearm',  'common', 145, 35, false, false, NULL, NULL),
+('Field Holster',     'holster',  'common', 125, 40, false, false, NULL, NULL),
+('Basic Backpack',    'backpack', 'common', 132, 40, false, false, NULL, NULL),
+('Standard Rifle',    'primary',  'common', 155, 35, false, false, NULL, NULL),
+('Compact SMG',       'secondary','common', 148, 35, false, false, NULL, NULL)
 ON CONFLICT DO NOTHING;
 `;
 

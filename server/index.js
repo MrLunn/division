@@ -149,8 +149,14 @@ setInterval(async () => {
 // ============================================================
 const { spawnCacheEvent } = require('./routes/events');
 setInterval(() => spawnCacheEvent(io), 45 * 60 * 1000);
-// Spawn one shortly after startup
 setTimeout(() => spawnCacheEvent(io), 90 * 1000);
+
+// ============================================================
+// BOT ACTIVITY — keeps the world feeling alive
+// ============================================================
+const { generateBotActivity } = require('./engine/bots');
+setInterval(() => generateBotActivity(io), 4 * 60 * 1000); // every 4 min
+setTimeout(() => generateBotActivity(io), 30 * 1000);      // first one after 30s
 
 // ============================================================
 // START

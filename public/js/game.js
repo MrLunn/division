@@ -764,6 +764,40 @@ const Game = {
 
   enterDZ() { this.notify('Entering Dark Zone — watch for rogues!', 'error'); },
 
+  async fightBot() {
+    try {
+      this.notify('Scanning for hostile agents...', '');
+      await this.delay(800);
+      const result = await API.post('/pvp/attack-bot');
+      const logEl = document.getElementById('pvp-combat-log');
+      if (logEl) {
+        logEl.style.display = 'block';
+        logEl.innerHTML = [
+          `<div style="color:var(--muted2);margin-bottom:6px;letter-spacing:2px;font-size:10px">// ENCOUNTER: ${result.bot.name} [GS ${result.bot.gs} · ${result.bot.tier.toUpperCase()}]</div>`,
+          ...(result.log || []).map(l => {
+            const isKill = l.includes('eliminated') || l.includes('killing blow');
+            return `<div class="${isKill ? (result.playerWins ? 'log-success' : 'log-fail') : 'log-hit'}">${l}</div>`;
+          }),
+          result.playerWins
+            ? `<div class="log-success" style="margin-top:6px;font-size:12px">// RESULT: VICTORY — +${result.credits.toLocaleString()} ¢ · +${result.xp.toLocaleString()} XP</div>`
+            : `<div class="log-fail"   style="margin-top:6px;font-size:12px">// RESULT: ELIMINATED — +${result.xp.toLocaleString()} XP · regroup and try again</div>`,
+        ].join('');
+      }
+      if (result.playerWins) {
+        this.flashScreen('#2ecc71');
+        this.notify(`☠ ${result.bot.name} eliminated · +${result.credits.toLocaleString()} ¢`, 'success', 3000);
+      } else {
+        this.flashScreen('#e74c3c');
+        this.notify(`Agent down · ${result.bot.name} [GS${result.bot.gs}] was too strong`, 'error', 3000);
+      }
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+    } catch (e) {
+      this.notify(e.message, 'error');
+    }
+  },
+
   async clearRogue() {
     try {
       const result = await API.pvp.clearRogue();

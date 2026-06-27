@@ -2,6 +2,7 @@ const router = require('express').Router();
 const db = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const combatEngine = require('../engine/combat');
+const { simulatePvpVsBot } = require('../engine/bots');
 
 const DZ_ZONES = ['DZ01 — South Perimeter', 'DZ03 — Hell\'s Kitchen', 'DZ06 — Financial District'];
 
@@ -145,6 +146,43 @@ router.post('/rogue/clear', requireAuth, async (req, res) => {
     res.json({ message: 'Bounty paid. Rogue status cleared.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to clear rogue status' });
+  }
+});
+
+// POST /api/pvp/attack-bot — fight a bot when no real players available
+router.post('/attack-bot', requireAuth, async (req, res) => {
+  try {
+    const result = simulatePvpVsBot(req.character.gear_score, req.character.level);
+
+    if (result.playerWins) {
+      await db.query(`
+        UPDATE characters SET
+          credits  = credits + $1,
+          xp       = xp + $2,
+          pvp_kills = pvp_kills + 1
+        WHERE id = $3
+      `, [result.credits, result.xp, req.character.id]);
+
+      // Log to feed
+      global.broadcastActivity(req.io, {
+        type: 'pvp',
+        text: `☠ ${req.character.name} eliminated ${result.bot.name} [BOT GS${result.bot.gs}] in the Dark Zone`,
+      });
+
+      // Check if any bounty existed on this bot (rare flavour)
+    } else {
+      await db.query(`
+        UPDATE characters SET xp = xp + $1 WHERE id = $2
+      `, [result.xp, req.character.id]);
+    }
+
+    res.json({
+      ...result,
+      yourName: req.character.name,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Bot encounter failed' });
   }
 });
 
