@@ -604,6 +604,10 @@ const Game = {
       <div style="font-size:9px;letter-spacing:3px;color:var(--muted2);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">STATS</div>
       ${statsHtml || '<div style="color:var(--muted);font-size:11px;padding:6px 0">No bonus stats on this item</div>'}
       ${item.flavor_text ? `<div style="margin-top:12px;font-size:10px;color:var(--muted);font-style:italic;border-top:1px solid var(--border);padding-top:8px">"${item.flavor_text}"</div>` : ''}
+      <div style="margin-top:10px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--muted2);line-height:1.6">
+        <span style="color:var(--accent);letter-spacing:1px">// LOOT TIERS UNLOCK BY LEVEL</span><br>
+        Rare LV3 · Epic LV8 · Named LV15 · Exotic LV22
+      </div>
     `;
 
     equipBtn.textContent = isEquipped ? 'UNEQUIP' : `EQUIP (${(item.slot||'').toUpperCase()})`;

@@ -57,30 +57,79 @@ function weightedRoll(weights) {
 }
 
 // ============================================================
-// ROLL RARITY
+// LEVEL-GATED GS RANGES
+// GS a character can receive scales with their level (1–30)
+// This prevents first-mission exotic drops
 // ============================================================
-function rollRarity(difficulty = 'normal', guaranteedMinRarity = null) {
+function gsRangeForLevel(level) {
+  const lvl = Math.max(1, Math.min(30, level || 1));
+  // Level 1  → GS 100–160
+  // Level 5  → GS 100–220
+  // Level 10 → GS 150–320
+  // Level 15 → GS 200–400
+  // Level 20 → GS 280–450
+  // Level 25 → GS 350–480
+  // Level 30 → GS 400–500 (full range)
+  const minGs = Math.floor(100 + (lvl - 1) * 10);          // 100 → 390
+  const maxGs = Math.floor(160 + (lvl - 1) * 11.33);       // 160 → 500
+  return { minGs, maxGs };
+}
+
+// Minimum level required to receive each rarity
+const RARITY_LEVEL_GATES = {
+  common:  1,
+  rare:    3,
+  epic:    8,
+  named:  15,
+  exotic: 22,
+};
+
+// ============================================================
+// ROLL GEAR SCORE — level-gated
+// ============================================================
+function rollGearScore(itemDef, rarity, characterLevel = 1) {
+  const variance  = itemDef.gs_variance || 5;
+  const base      = itemDef.base_gs;
+  const raw       = base + rand(-variance, variance);
+  const { minGs, maxGs } = gsRangeForLevel(characterLevel);
+  // Clamp to what this level can receive
+  return Math.max(minGs, Math.min(maxGs, raw));
+}
+
+// ============================================================
+// ROLL RARITY — level-gated
+// ============================================================
+function rollRarity(difficulty = 'normal', guaranteedMinRarity = null, characterLevel = 1) {
   const mults = DIFFICULTY_MULTIPLIERS[difficulty] || DIFFICULTY_MULTIPLIERS.normal;
   const weights = {};
   for (const [rarity, baseWeight] of Object.entries(BASE_WEIGHTS)) {
-    weights[rarity] = baseWeight * (mults[rarity] || 1.0);
+    // Zero out rarities the player hasn't unlocked yet
+    const gateLevel = RARITY_LEVEL_GATES[rarity] || 1;
+    if (characterLevel < gateLevel) {
+      weights[rarity] = 0;
+    } else {
+      weights[rarity] = baseWeight * (mults[rarity] || 1.0);
+    }
   }
 
   let rarity = weightedRoll(weights);
 
-  // Apply guaranteed minimum rarity
+  // Apply guaranteed minimum rarity — but only if the player can receive it
   if (guaranteedMinRarity) {
-    const minIdx = RARITY_ORDER.indexOf(guaranteedMinRarity);
+    const minIdx    = RARITY_ORDER.indexOf(guaranteedMinRarity);
     const rolledIdx = RARITY_ORDER.indexOf(rarity);
-    if (rolledIdx < minIdx) rarity = guaranteedMinRarity;
+    // Clamp the guaranteed min to what this level allows
+    let allowedMinIdx = minIdx;
+    while (allowedMinIdx > 0) {
+      const r = RARITY_ORDER[allowedMinIdx];
+      if (characterLevel >= (RARITY_LEVEL_GATES[r] || 1)) break;
+      allowedMinIdx--;
+    }
+    if (rolledIdx < allowedMinIdx) rarity = RARITY_ORDER[allowedMinIdx];
   }
 
   return rarity;
 }
-
-// ============================================================
-// GENERATE ITEM STATS
-// ============================================================
 function generateStats(rarity, itemDef) {
   const range = STAT_RANGES[rarity] || STAT_RANGES.common;
   const numStats = rarity === 'exotic' ? 5 : rarity === 'named' ? 4 : rarity === 'epic' ? 3 : rarity === 'rare' ? 2 : 1;
@@ -121,9 +170,10 @@ async function generateItem(options = {}) {
     forcedSlot = null,
     acquiredFrom = 'unknown',
     characterId = null,
+    characterLevel = 1,
   } = options;
 
-  const rarity = forcedRarity || rollRarity(difficulty, guaranteedMinRarity);
+  const rarity = forcedRarity || rollRarity(difficulty, guaranteedMinRarity, characterLevel);
 
   // Fetch matching item definition from DB
   const slotClause = forcedSlot ? `AND slot = '${forcedSlot}'` : '';
@@ -135,19 +185,18 @@ async function generateItem(options = {}) {
   `, [rarity]);
 
   if (result.rows.length === 0) {
-    // Fallback to common if nothing found
     const fallback = await db.query(
       `SELECT * FROM item_definitions WHERE rarity = 'common' ORDER BY RANDOM() LIMIT 1`
     );
     if (fallback.rows.length === 0) return null;
-    return buildItem(fallback.rows[0], 'common', acquiredFrom, characterId);
+    return buildItem(fallback.rows[0], 'common', acquiredFrom, characterId, characterLevel);
   }
 
-  return buildItem(result.rows[0], rarity, acquiredFrom, characterId);
+  return buildItem(result.rows[0], rarity, acquiredFrom, characterId, characterLevel);
 }
 
-function buildItem(itemDef, rarity, acquiredFrom, characterId) {
-  const gs = rollGearScore(itemDef, rarity);
+function buildItem(itemDef, rarity, acquiredFrom, characterId, characterLevel = 1) {
+  const gs    = rollGearScore(itemDef, rarity, characterLevel);
   const stats = generateStats(rarity, itemDef);
 
   return {
@@ -206,17 +255,21 @@ async function saveItem(itemData, characterId) {
 // ROLL A LOOT BATCH (for missions)
 // ============================================================
 async function rollMissionLoot(mission, characterId) {
+  // Fetch character level for GS gating
+  const charResult = await db.query('SELECT level FROM characters WHERE id=$1', [characterId]);
+  const characterLevel = charResult.rows[0]?.level || 1;
+
   const items = [];
   const rolls = mission.loot_rolls || 2;
 
   for (let i = 0; i < rolls; i++) {
-    // First roll always respects guaranteed rarity
     const guaranteedMin = i === 0 ? mission.loot_bonus_rarity : null;
     const item = await generateItem({
       difficulty: mission.difficulty,
       guaranteedMinRarity: guaranteedMin,
       acquiredFrom: mission.name,
       characterId,
+      characterLevel,
     });
     if (item) {
       const saved = await saveItem(item, characterId);
@@ -228,8 +281,34 @@ async function rollMissionLoot(mission, characterId) {
 }
 
 // ============================================================
-// RECALCULATE CHARACTER GEAR SCORE
+// OPEN A CACHE (standalone loot roll)
 // ============================================================
+async function openCache(type, characterId) {
+  // Fetch character level for GS gating
+  const charResult = await db.query('SELECT level FROM characters WHERE id=$1', [characterId]);
+  const characterLevel = charResult.rows[0]?.level || 1;
+
+  const settings = {
+    standard:   { difficulty: 'normal',      min: null },
+    high_end:   { difficulty: 'hard',        min: 'rare' },
+    exotic:     { difficulty: 'heroic',      min: 'exotic', forced: 'exotic' },
+    named:      { difficulty: 'challenging', min: 'named' },
+  };
+
+  const cfg  = settings[type] || settings.standard;
+  const item = await generateItem({
+    difficulty: cfg.difficulty,
+    guaranteedMinRarity: cfg.min,
+    forcedRarity: cfg.forced || null,
+    acquiredFrom: `${type}_cache`,
+    characterId,
+    characterLevel,
+  });
+
+  if (!item) return null;
+  const saved = await saveItem(item, characterId);
+  return saved._meta;
+}
 async function recalcGearScore(characterId) {
   // Average GS of equipped items across 6 gear slots + 2 weapon slots
   const result = await db.query(`
@@ -244,29 +323,6 @@ async function recalcGearScore(characterId) {
 }
 
 // ============================================================
-// OPEN A CACHE (standalone loot roll, e.g. daily reward)
-// ============================================================
-async function openCache(type, characterId) {
-  const settings = {
-    standard:   { difficulty: 'normal',      min: null },
-    high_end:   { difficulty: 'hard',        min: 'rare' },
-    exotic:     { difficulty: 'heroic',      min: 'exotic', forced: 'exotic' },
-    named:      { difficulty: 'challenging', min: 'named' },
-  };
-
-  const cfg = settings[type] || settings.standard;
-  const item = await generateItem({
-    difficulty: cfg.difficulty,
-    guaranteedMinRarity: cfg.min,
-    forcedRarity: cfg.forced || null,
-    acquiredFrom: `${type}_cache`,
-    characterId,
-  });
-
-  if (!item) return null;
-  const saved = await saveItem(item, characterId);
-  return saved._meta;
-}
 
 module.exports = {
   generateItem,
