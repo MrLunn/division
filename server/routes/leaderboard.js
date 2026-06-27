@@ -12,7 +12,7 @@ router.get('/:type', requireAuth, async (req, res) => {
 
     if (type === 'gear_score') {
       query = `
-        SELECT ch.name, ch.gear_score as value, ch.level,
+        SELECT ch.name, ch.id as character_id, ch.gear_score as value, ch.level, ch.respect,
           cl.name as clan_name, cl.tag as clan_tag,
           RANK() OVER (ORDER BY ch.gear_score DESC) as rank
         FROM characters ch
@@ -25,7 +25,7 @@ router.get('/:type', requireAuth, async (req, res) => {
       params = [LIMIT];
     } else if (type === 'pvp_kills') {
       query = `
-        SELECT ch.name, ch.pvp_kills as value, ch.level,
+        SELECT ch.name, ch.id as character_id, ch.pvp_kills as value, ch.level, ch.respect,
           cl.name as clan_name, cl.tag as clan_tag,
           RANK() OVER (ORDER BY ch.pvp_kills DESC) as rank
         FROM characters ch
@@ -38,7 +38,7 @@ router.get('/:type', requireAuth, async (req, res) => {
       params = [LIMIT];
     } else if (type === 'missions') {
       query = `
-        SELECT ch.name, ch.missions_done as value, ch.level,
+        SELECT ch.name, ch.id as character_id, ch.missions_done as value, ch.level, ch.respect,
           cl.name as clan_name, cl.tag as clan_tag,
           RANK() OVER (ORDER BY ch.missions_done DESC) as rank
         FROM characters ch
@@ -46,6 +46,19 @@ router.get('/:type', requireAuth, async (req, res) => {
         LEFT JOIN clans cl ON cl.id = cm.clan_id
         WHERE ch.missions_done > 0
         ORDER BY ch.missions_done DESC
+        LIMIT $1
+      `;
+      params = [LIMIT];
+    } else if (type === 'respect') {
+      query = `
+        SELECT ch.name, ch.id as character_id, ch.respect as value, ch.level, ch.respect,
+          cl.name as clan_name, cl.tag as clan_tag,
+          RANK() OVER (ORDER BY ch.respect DESC) as rank
+        FROM characters ch
+        LEFT JOIN clan_members cm ON cm.character_id = ch.id
+        LEFT JOIN clans cl ON cl.id = cm.clan_id
+        WHERE ch.respect > 0
+        ORDER BY ch.respect DESC
         LIMIT $1
       `;
       params = [LIMIT];

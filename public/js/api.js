@@ -97,3 +97,9 @@ const RecalibrationAPI = {
   preview: (invId)              => API.get(`/recalibration/${invId}`),
   reroll:  (invId, statToReroll) => API.post(`/recalibration/${invId}`, { statToReroll }),
 };
+
+const JailAPI = {
+  list:       ()                    => API.get('/jail'),
+  breakOut:   (eventId)             => API.post(`/jail/${eventId}/break`),
+  raiseBounty:(eventId, amount)     => API.post(`/jail/${eventId}/bounty`, { amount }),
+};

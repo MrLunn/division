@@ -77,6 +77,7 @@
           <button class="navbtn"        data-view="inventory"   onclick="switchView('inventory')">INVENTORY</button>
           <button class="navbtn"        data-view="contracts"   onclick="switchView('contracts')">CONTRACTS</button>
           <button class="navbtn"        data-view="bounties"    onclick="switchView('bounties')">BOUNTIES</button>
+          <button class="navbtn"        data-view="jail"        onclick="switchView('jail')" id="nav-jail">CUSTODY</button>
           <button class="navbtn"        data-view="darkzone"    onclick="switchView('darkzone')">DARK ZONE</button>
           <button class="navbtn"        data-view="clans"       onclick="switchView('clans')">CLANS</button>
           <button class="navbtn"        data-view="leaderboard" onclick="switchView('leaderboard')">LEADERBOARD</button>
@@ -116,6 +117,13 @@
         <div class="hud-label">CREDITS</div>
         <div id="hud-credits" class="hud-val"></div>
       </div>
+      <div class="hud-stat">
+        <div class="hud-icon" style="color:#af7ac5">★</div>
+        <div class="hud-label">RESPECT</div>
+        <div id="hud-respect" class="hud-val" style="color:#af7ac5"></div>
+      </div>
+      <!-- Jail indicator -->
+      <div id="jail-indicator" style="display:none;align-items:center;gap:8px;margin-left:auto;padding:0 16px;background:rgba(231,76,60,0.15);border-left:2px solid var(--red);font-size:11px;color:var(--red);letter-spacing:1px;font-weight:700;cursor:pointer" onclick="switchView('jail')"></div>
     </div>
 
     <!-- NOTIFICATION BANNER -->
@@ -281,6 +289,7 @@
             <button class="lb-tab active" onclick="loadLeaderboard('gear_score',this)">GEAR SCORE</button>
             <button class="lb-tab" onclick="loadLeaderboard('pvp_kills',this)">PVP KILLS</button>
             <button class="lb-tab" onclick="loadLeaderboard('missions',this)">MISSIONS</button>
+            <button class="lb-tab" onclick="loadLeaderboard('respect',this)">RESPECT</button>
             <button class="lb-tab" onclick="loadLeaderboard('clans',this)">CLANS</button>
           </div>
           <div class="panel lb-panel">
@@ -341,6 +350,33 @@
               <button class="btn-danger" onclick="Game.postBounty()" style="width:100%">POST BOUNTY</button>
               <div id="bounty-error" style="color:var(--red);font-size:11px;min-height:16px"></div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- JAIL VIEW -->
+      <div id="view-jail" class="view">
+        <div style="display:grid;grid-template-columns:1fr 300px;height:100%;gap:0">
+          <div style="padding:14px;overflow-y:auto">
+            <div class="panel-title" style="margin-bottom:12px">// CUSTODY ROSTER
+              <span style="color:var(--muted);font-size:10px;font-weight:400;letter-spacing:1px">Break out agents for rewards</span>
+            </div>
+            <div id="my-jail-status"></div>
+            <div id="jail-list"></div>
+          </div>
+          <div style="padding:14px;border-left:1px solid var(--border);overflow-y:auto">
+            <div class="panel-title" style="margin-bottom:12px">// HOW IT WORKS</div>
+            <div style="font-size:11px;color:var(--muted2);line-height:1.8;margin-bottom:16px">
+              <div style="margin-bottom:8px"><span style="color:var(--red)">Arrest:</span> Failed heroic or challenging missions have a 15–20% chance to land your agent in custody for 30 minutes.</div>
+              <div style="margin-bottom:8px"><span style="color:var(--green)">Jailbreak:</span> Any agent online can break you out — click their name in the roster to collect the reward.</div>
+              <div><span style="color:var(--accent)">Raise bounty:</span> If you're inside, spend credits to raise the reward and attract rescuers faster.</div>
+            </div>
+            <div style="font-size:9px;letter-spacing:3px;color:var(--muted2);margin-bottom:8px">RESPECT REWARDS</div>
+            <div class="pvp-stat-row"><span class="pvs-label">Break someone out</span><span class="pvs-val" style="color:#af7ac5">+100 ★</span></div>
+            <div class="pvp-stat-row"><span class="pvs-label">Claim a bounty</span><span class="pvs-val" style="color:#af7ac5">+50 ★</span></div>
+            <div class="pvp-stat-row"><span class="pvs-label">Complete heroic</span><span class="pvs-val" style="color:#af7ac5">+25 ★</span></div>
+            <div class="pvp-stat-row"><span class="pvs-label">Complete challenging</span><span class="pvs-val" style="color:#af7ac5">+15 ★</span></div>
+            <div class="pvp-stat-row"><span class="pvs-label">Complete hard</span><span class="pvs-val" style="color:#af7ac5">+10 ★</span></div>
           </div>
         </div>
       </div>

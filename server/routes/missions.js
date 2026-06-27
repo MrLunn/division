@@ -114,6 +114,20 @@ router.post('/:id/run', requireAuth, async (req, res) => {
       // Tick kills from combat log
       const killCount = (combatResult.log || []).filter(l => l.includes('eliminated')).length;
       if (killCount > 0) await tickContract(req.character.id, 'kills', killCount);
+
+      // Respect for completing a mission
+      const respectGain = mission.difficulty === 'heroic' ? 25
+                        : mission.difficulty === 'challenging' ? 15
+                        : mission.difficulty === 'hard' ? 10 : 5;
+      await db.query('UPDATE characters SET respect=respect+$1 WHERE id=$2', [respectGain, req.character.id]);
+    } else {
+      // Failed mission — chance to be arrested on heroic/challenging
+      const arrestChance = mission.difficulty === 'heroic' ? 0.20
+                         : mission.difficulty === 'challenging' ? 0.10 : 0;
+      if (arrestChance > 0 && Math.random() < arrestChance) {
+        const { arrest } = require('./jail');
+        await arrest(req.character.id, req.io);
+      }
     }
 
     // Update run record
@@ -121,12 +135,16 @@ router.post('/:id/run', requireAuth, async (req, res) => {
       UPDATE mission_runs SET completed_at = NOW(), success = $1, loot_earned = $2 WHERE id = $3
     `, [combatResult.success, JSON.stringify(loot), runId]);
 
+    // Return updated character (so HUD shows new respect/jail state)
+    const updatedChar = await db.query('SELECT respect, is_jailed, jail_until FROM characters WHERE id=$1', [req.character.id]);
+
     res.json({
       success: combatResult.success,
       mission: { name: mission.name, difficulty: mission.difficulty },
       combatLog: combatResult.combatLog,
       loot,
       rewards: combatResult.success ? { xp: xpGained, credits: creditsGained } : null,
+      character: updatedChar.rows[0],
     });
   } catch (err) {
     console.error('Mission run error:', err);

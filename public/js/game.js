@@ -85,6 +85,29 @@ const Game = {
       this.flashScreen('#e74c3c');
     });
 
+    // Arrested
+    this.socket.on('jail:arrested', ({ minutes, eventId }) => {
+      if (this.character) {
+        this.character.is_jailed = true;
+        this.character.jail_until = new Date(Date.now() + minutes * 60000).toISOString();
+      }
+      this.updateHUD();
+      this._jailEventId = eventId;
+      this.notify(`🚔 ARRESTED — ${minutes} minutes in custody. Post a jailbreak bounty to get out faster!`, 'error', 8000);
+      this.flashScreen('#e74c3c');
+      // Show jail indicator
+      const jailEl = document.getElementById('jail-indicator');
+      if (jailEl) jailEl.style.display = 'flex';
+    });
+
+    // Released from jail
+    this.socket.on('jail:released', ({ by }) => {
+      if (this.character) { this.character.is_jailed = false; this.character.jail_until = null; }
+      this.updateHUD();
+      this.notify(`🔓 You've been broken out by ${by}! Back in action.`, 'success', 5000);
+      this.flashScreen('#2ecc71');
+    });
+
     // Cache event spawned
     this.socket.on('event:cache_spawned', (event) => {
       this.showCacheEvent(event);
@@ -108,11 +131,54 @@ const Game = {
   // ============================================================
   // HUD
   // ============================================================
+  // Criminal rank titles — inspired by Nordic Mafia
+  RANKS: [
+    { minLevel: 1,  title: 'Wannabe',    color: '#628098' },
+    { minLevel: 4,  title: 'Bråkmaker',  color: '#e8890c' },
+    { minLevel: 8,  title: 'Gangster',   color: '#e74c3c' },
+    { minLevel: 13, title: 'Løytnant',   color: '#8e44ad' },
+    { minLevel: 18, title: 'Capo',       color: '#2980b9' },
+    { minLevel: 23, title: 'Underboss',  color: '#16a085' },
+    { minLevel: 27, title: 'Don',        color: '#e67e22' },
+  ],
+
+  getRank(level) {
+    let rank = this.RANKS[0];
+    for (const r of this.RANKS) {
+      if (level >= r.minLevel) rank = r;
+      else break;
+    }
+    return rank;
+  },
+
   updateHUD() {
     const c = this.character;
     if (!c) return;
+
+    const rank = this.getRank(c.level || 1);
+
+    // Name + rank badge
     document.getElementById('hud-name').textContent = c.name;
-    document.getElementById('hud-level').textContent = `LV.${c.level}`;
+    const levelEl = document.getElementById('hud-level');
+    if (levelEl) {
+      levelEl.innerHTML = `<span style="color:${rank.color};font-weight:700">${rank.title}</span> <span style="color:var(--muted2);font-size:10px">LV.${c.level}</span>`;
+    }
+
+    // Respect
+    const respectEl = document.getElementById('hud-respect');
+    if (respectEl) respectEl.textContent = (c.respect || 0).toLocaleString();
+
+    // Jail indicator
+    const jailEl = document.getElementById('jail-indicator');
+    if (jailEl) {
+      if (c.is_jailed && c.jail_until && new Date(c.jail_until) > new Date()) {
+        const minsLeft = Math.ceil((new Date(c.jail_until) - Date.now()) / 60000);
+        jailEl.style.display = 'flex';
+        jailEl.innerHTML = `🚔 IN CUSTODY — ${minsLeft}m remaining`;
+      } else {
+        jailEl.style.display = 'none';
+      }
+    }
 
     // Animate GS if it changed
     const gsEl = document.getElementById('hud-gs');
@@ -121,11 +187,12 @@ const Game = {
     if (gsEl && prevGs !== newGs && prevGs !== 0) {
       this.animateGSTick(prevGs, newGs);
       gsEl.classList.remove('gs-pop');
-      void gsEl.offsetWidth; // reflow
+      void gsEl.offsetWidth;
       gsEl.classList.add('gs-pop');
     } else if (gsEl) {
       gsEl.textContent = newGs;
     }
+
     document.getElementById('hud-credits').textContent = parseInt(c.credits || 0).toLocaleString() + ' ¢';
 
     const hp    = Math.min(100, 50 + (c.gear_score || 0) / 10);
@@ -174,6 +241,7 @@ const Game = {
       inventory:   () => this.loadInventoryView(),
       contracts:   () => this.loadContractsView(),
       bounties:    () => this.loadBountiesView(),
+      jail:        () => this.loadJailView(),
       darkzone:    () => this.loadDarkZoneView(),
       clans:       () => this.loadClansView(),
       leaderboard: () => this.loadLeaderboardView(),
@@ -965,12 +1033,18 @@ const Game = {
 
       el.innerHTML = data.entries.map(entry => {
         const isYou = entry.name === this.character?.name;
+        const entryRank = this.getRank(entry.level || 1);
         return `<div class="lb-row ${isYou ? 'you' : ''}">
           ${rankLabel(entry.rank)}
           <div class="lb-name">
-            ${entry.name || entry.clan_name}
-            ${isYou ? '<span class="you-tag">[YOU]</span>' : ''}
-            <div class="lb-clan">${entry.clan_tag ? `[${entry.clan_tag}]` : ''}</div>
+            <div>${entry.name || entry.clan_name}
+              ${isYou ? '<span class="you-tag">[YOU]</span>' : ''}
+            </div>
+            <div style="font-size:10px;display:flex;gap:8px;margin-top:2px">
+              <span style="color:${entryRank.color}">${entryRank.title}</span>
+              ${entry.clan_tag ? `<span class="lb-clan">[${entry.clan_tag}]</span>` : ''}
+              ${entry.respect ? `<span style="color:#af7ac5">★ ${Number(entry.respect).toLocaleString()}</span>` : ''}
+            </div>
           </div>
           <div class="lb-value">${formatVal(type, entry.value)}</div>
         </div>`;
@@ -1323,6 +1397,88 @@ const Game = {
       const me = await API.auth.me();
       this.character = me.character;
       this.updateHUD();
+    } catch (e) { this.notify(e.message, 'error'); }
+  },
+
+  // ============================================================
+  // JAIL VIEW
+  // ============================================================
+  async loadJailView() {
+    try {
+      const data = await JailAPI.list();
+      const el   = document.getElementById('jail-list');
+      const myJailEl = document.getElementById('my-jail-status');
+
+      // Show own jail status if arrested
+      const c = this.character;
+      if (c?.is_jailed && c.jail_until && new Date(c.jail_until) > new Date()) {
+        const minsLeft = Math.ceil((new Date(c.jail_until) - Date.now()) / 60000);
+        if (myJailEl) myJailEl.innerHTML = `
+          <div style="background:rgba(231,76,60,0.1);border:1px solid var(--red);border-left:3px solid var(--red);padding:14px 16px;margin-bottom:14px">
+            <div style="font-size:9px;letter-spacing:3px;color:var(--red);margin-bottom:4px">🚔 YOU ARE IN CUSTODY</div>
+            <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:8px">${minsLeft} minutes remaining</div>
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">Raise your jailbreak bounty to attract rescuers faster.</div>
+            ${this._jailEventId ? `
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="number" id="raise-bounty-amount" placeholder="Amount (¢)" min="100" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:6px 10px;font-family:var(--font-hud);font-size:13px;outline:none;width:160px">
+                <button class="btn-primary" style="padding:6px 16px" onclick="Game.raiseBounty()">RAISE BOUNTY</button>
+              </div>` : ''}
+          </div>`;
+      } else if (myJailEl) {
+        myJailEl.innerHTML = '';
+      }
+
+      if (!data.prisoners.length) {
+        el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:16px 0;text-align:center">No agents in custody right now.</div>';
+        return;
+      }
+
+      el.innerHTML = data.prisoners.map(p => {
+        const isMe = p.prisoner_id === this.character?.id;
+        const minsLeft = Math.ceil((new Date(p.jail_until || Date.now() + 60000) - Date.now()) / 60000);
+        return `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${isMe ? 'var(--red)' : 'var(--border3)'};padding:12px 16px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:${isMe ? 'var(--red)' : 'var(--text)'};margin-bottom:2px">
+                🚔 ${p.prisoner_name}${isMe ? ' (YOU)' : ''}
+              </div>
+              <div style="font-size:10px;color:var(--muted2)">GS ${p.gear_score} · LV${p.level} · ${minsLeft}m remaining</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:var(--font-hud);font-size:20px;color:var(--green);font-weight:700">${Number(p.jailbreak_bounty).toLocaleString()} ¢</div>
+              <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px">JAILBREAK REWARD</div>
+              ${!isMe ? `<button class="btn-primary" style="font-size:10px;padding:4px 14px" onclick="Game.breakOut('${p.id}', '${p.prisoner_name}')">BREAK OUT</button>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    } catch (e) {
+      this.notify(e.message, 'error');
+    }
+  },
+
+  async breakOut(eventId, prisonerName) {
+    try {
+      const r = await JailAPI.breakOut(eventId);
+      this.notify(`🔓 ${r.message}`, 'success', 5000);
+      this.flashScreen('#2ecc71');
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadJailView();
+    } catch (e) { this.notify(e.message, 'error'); }
+  },
+
+  async raiseBounty() {
+    const amount = parseInt(document.getElementById('raise-bounty-amount')?.value);
+    if (!amount || amount < 100) { this.notify('Minimum top-up is 100 ¢', 'error'); return; }
+    if (!this._jailEventId) return;
+    try {
+      const r = await JailAPI.raiseBounty(this._jailEventId, amount);
+      this.notify(r.message, 'success');
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadJailView();
     } catch (e) { this.notify(e.message, 'error'); }
   },
 

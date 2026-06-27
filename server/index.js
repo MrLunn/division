@@ -46,6 +46,7 @@ app.use('/api/contracts',      require('./routes/contracts'));
 app.use('/api/bounties',       require('./routes/bounties'));
 app.use('/api/events',         require('./routes/events'));
 app.use('/api/recalibration',  require('./routes/recalibration'));
+app.use('/api/jail',           require('./routes/jail'));
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'online', time: new Date() }));

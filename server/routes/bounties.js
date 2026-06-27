@@ -86,7 +86,7 @@ router.post('/:id/claim', requireAuth, async (req, res) => {
 
     // Pay out
     await db.query('UPDATE bounties SET claimed_by=$1, claimed_at=NOW() WHERE id=$2', [req.character.id, id]);
-    await db.query('UPDATE characters SET credits=credits+$1 WHERE id=$2', [b.reward, req.character.id]);
+    await db.query('UPDATE characters SET credits=credits+$1, respect=respect+50 WHERE id=$2', [b.reward, req.character.id]);
 
     global.broadcastActivity(req.io, {
       type: 'bounty_claimed',

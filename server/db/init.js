@@ -42,8 +42,11 @@ CREATE TABLE IF NOT EXISTS characters (
   pvp_kills       INT DEFAULT 0,
   pvp_deaths      INT DEFAULT 0,
   missions_done   INT DEFAULT 0,
+  respect         INT DEFAULT 0,
   is_rogue        BOOLEAN DEFAULT FALSE,
   rogue_timer     INT DEFAULT 0,
+  is_jailed       BOOLEAN DEFAULT FALSE,
+  jail_until      TIMESTAMPTZ,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id)
 );
@@ -256,6 +259,17 @@ CREATE TABLE IF NOT EXISTS cache_events (
   claimed_at   TIMESTAMPTZ
 );
 
+-- Jail events — agents arrested after failed heroic missions
+CREATE TABLE IF NOT EXISTS jail_events (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prisoner_id  UUID REFERENCES characters(id) ON DELETE CASCADE,
+  jailbreak_bounty  INT NOT NULL DEFAULT 500,
+  released_by  UUID REFERENCES characters(id) ON DELETE SET NULL,
+  released_at  TIMESTAMPTZ,
+  auto_release BOOLEAN DEFAULT FALSE,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Recalibration log (one reroll per item)
 CREATE TABLE IF NOT EXISTS recalibrations (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -372,10 +386,12 @@ async function init() {
     console.log('🔧 Initializing Division MMO database...\n');
     await client.query(schema);
     console.log('✅ Schema created');
-    // Drop global unique constraint on character names if it exists (names only need to be unique per user)
-    await client.query(`
-      ALTER TABLE characters DROP CONSTRAINT IF EXISTS characters_name_key;
-    `).catch(() => {}); // ignore if already gone
+    // Migrate existing DB — add new columns if they don't exist yet
+    await client.query(`ALTER TABLE characters ADD COLUMN IF NOT EXISTS respect INT DEFAULT 0`);
+    await client.query(`ALTER TABLE characters ADD COLUMN IF NOT EXISTS is_jailed BOOLEAN DEFAULT FALSE`);
+    await client.query(`ALTER TABLE characters ADD COLUMN IF NOT EXISTS jail_until TIMESTAMPTZ`);
+    // Drop global unique constraint on character names if it exists
+    await client.query(`ALTER TABLE characters DROP CONSTRAINT IF EXISTS characters_name_key`).catch(() => {});
     await client.query(seedMissions);
     console.log('✅ Missions seeded');
     await client.query(seedItems);
