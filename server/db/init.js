@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS characters (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
-  name            VARCHAR(32) UNIQUE NOT NULL,
+  name            VARCHAR(32) NOT NULL,
   level           INT DEFAULT 1,
   xp              BIGINT DEFAULT 0,
   gear_score      INT DEFAULT 0,
@@ -292,6 +292,10 @@ async function init() {
     console.log('🔧 Initializing Division MMO database...\n');
     await client.query(schema);
     console.log('✅ Schema created');
+    // Drop global unique constraint on character names if it exists (names only need to be unique per user)
+    await client.query(`
+      ALTER TABLE characters DROP CONSTRAINT IF EXISTS characters_name_key;
+    `).catch(() => {}); // ignore if already gone
     await client.query(seedMissions);
     console.log('✅ Missions seeded');
     await client.query(seedItems);

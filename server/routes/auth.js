@@ -13,6 +13,19 @@ router.post('/register', async (req, res) => {
   if (characterName.length < 3) return res.status(400).json({ error: 'Agent name must be 3+ characters' });
 
   try {
+    // Pre-check for existing username or email with clear messages
+    const existing = await db.query(
+      `SELECT username, email FROM users WHERE username = $1 OR email = $2`,
+      [username.toLowerCase(), email.toLowerCase()]
+    );
+    if (existing.rows.length > 0) {
+      const taken = existing.rows[0];
+      if (taken.username === username.toLowerCase())
+        return res.status(409).json({ error: `Username "${username}" is already taken — please choose another` });
+      if (taken.email === email.toLowerCase())
+        return res.status(409).json({ error: 'That email address is already registered' });
+    }
+
     const hash = await bcrypt.hash(password, 12);
 
     const userResult = await db.query(`
@@ -38,9 +51,10 @@ router.post('/register', async (req, res) => {
     });
   } catch (err) {
     if (err.code === '23505') {
-      if (err.constraint.includes('email')) return res.status(409).json({ error: 'Email already registered' });
-      if (err.constraint.includes('username')) return res.status(409).json({ error: 'Username taken' });
-      if (err.constraint.includes('characters_name')) return res.status(409).json({ error: 'Agent name taken' });
+      if (err.constraint && err.constraint.includes('email'))
+        return res.status(409).json({ error: 'That email address is already registered' });
+      if (err.constraint && err.constraint.includes('username'))
+        return res.status(409).json({ error: `Username "${username}" is already taken — please choose another` });
     }
     console.error('Register error:', err);
     res.status(500).json({ error: 'Registration failed' });
