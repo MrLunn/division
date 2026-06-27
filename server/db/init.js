@@ -219,18 +219,19 @@ CREATE INDEX IF NOT EXISTS idx_clan_members_clan ON clan_members(clan_id);
 `;
 
 const seedMissions = `
+DELETE FROM missions;
 INSERT INTO missions (name, description, type, difficulty, map_x, map_y, min_gs, xp_reward, credit_reward, loot_rolls, loot_bonus_rarity, duration_secs) VALUES
-('Lincoln Tunnel',       'Secure the Lincoln Tunnel entrance and push back Rikers forces.',             'expedition', 'hard',        0.18, 0.28, 100, 2400, 1200, 3, 'rare',   45),
-('Rooftop Comms',        'Restore SHD communication towers across Midtown.',                            'mission',    'challenging', 0.42, 0.18, 200, 3600, 2000, 3, 'epic',   60),
-('Grand Washington',     'Assault the Grand Washington Hotel — Hunters inside.',                        'stronghold', 'heroic',      0.65, 0.38, 350, 6000, 4000, 4, 'named',  90),
-('DZ South Landmark',    'Claim the contaminated cache at the South landmark.',                         'dark_zone',  'challenging', 0.28, 0.58, 150, 1800, 500,  2, 'epic',   30),
-('Wall Street',          'Push through Wall Street and reach the evacuation point.',                    'mission',    'normal',      0.55, 0.65, 0,   900,  450,  2, 'common', 30),
-('Warlord Base Assault', 'Assault the Warlord-held base — clan capture point.',                        'base_raid',  'heroic',      0.78, 0.55, 300, 4000, 2000, 4, 'named',  120),
-('Times Square Sweep',   'Neutralize rogue agents operating in Times Square.',                         'bounty',     'hard',        0.38, 0.40, 200, 2000, 1000, 2, 'rare',   40),
-('Dark Hours Raid',      'Four-agent incursion into the Occupied Dark Zone — exotic tier rewards.',     'raid',       'heroic',      0.50, 0.30, 450, 12000,8000, 6, 'exotic', 180),
-('Supply Drop',          'Intercept an enemy supply convoy before it reaches the base.',               'mission',    'hard',        0.25, 0.75, 150, 1600, 800,  2, 'rare',   35),
-('Campus Rescue',        'Evacuate civilians trapped on the NYU campus.',                              'mission',    'story',       0.70, 0.20, 0,   500,  200,  1, 'common', 20)
-ON CONFLICT DO NOTHING;
+('Aker Brygge Pier',    'Secure the waterfront — Rogue agents control the Aker Brygge ferry terminals.',      'mission',    'hard',        0.28, 0.58, 100, 2400, 1200, 3, 'rare',   45),
+('Karl Johans Gate',    'Street fight through Oslo main boulevard. Clear all Black Tusk checkpoints.',         'street_fight','challenging', 0.50, 0.40, 200, 3600, 2000, 3, 'epic',   60),
+('Gronland Sweep',      'Neutralize Black Tusk cell that has fortified the Gronland district.',                'expedition', 'heroic',      0.68, 0.38, 350, 6000, 4000, 4, 'named',  90),
+('Operahuset',          'The Oslo Opera House is a Riker stronghold. Assault from the Bjorvika waterfront.',  'stronghold', 'heroic',      0.60, 0.62, 400, 8000, 5000, 4, 'named',  90),
+('Frogner Park',        'Bounty: Elite Hunter spotted near Vigelandsparken. Track and eliminate.',             'bounty',     'challenging', 0.18, 0.28, 200, 2000, 1000, 2, 'rare',   40),
+('Grunerloekka Raid',   'Clan raid — True Sons have fortified Thorvald Meyers gate with heavy weapons.',      'raid',       'heroic',      0.72, 0.22, 450,12000, 8000, 6, 'exotic', 180),
+('Stortinget',          'Retake the Norwegian parliament from True Sons. Dark Zone perimeter breached.',       'mission',    'challenging', 0.44, 0.36, 200, 3200, 1800, 3, 'epic',   60),
+('Ekeberg Ridge',       'Dark Zone on Ekeberg ridge — contested by Outcasts. Loot extraction active.',        'dark_zone',  'heroic',      0.76, 0.68, 300, 1800,  500, 2, 'epic',   30),
+('Daily Youngstorget',  'Daily bounty — Clear Youngstorget square and resupply the Sentrum safe house.',      'daily',      'normal',      0.55, 0.32,   0, 1200,  600, 2, 'rare',   30),
+('Tjuvholmen Base',     'Clan capture point — Storm Tjuvholmen gallery district and hold it for 24 hours.',   'base_raid',  'heroic',      0.20, 0.66, 300, 4000, 2000, 4, 'named',  120)
+;
 `;
 
 const seedItems = `

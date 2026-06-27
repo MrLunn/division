@@ -15,16 +15,16 @@ const MapEngine = {
   animFrame: null,
 
   osloMissions: [
-    { key: 'Aker Brygge Pier', desc: 'Secure the waterfront — Rogue agents control the ferry terminals.', type: 'mission', diff: 'hard', color: '#a335ee', x: 0.28, y: 0.58, street: 'Bryggegata', district: 'Aker Brygge' },
-    { key: 'Karl Johans Gate', desc: "Street fight through Oslo's main boulevard. Clear all checkpoints.", type: 'street_fight', diff: 'challenging', color: '#e74c3c', x: 0.50, y: 0.40, street: 'Karl Johans gate', district: 'Sentrum' },
-    { key: 'Grønland Sweep', desc: 'Neutralize Black Tusk cell in the Grønland district.', type: 'expedition', diff: 'heroic', color: '#f4a116', x: 0.68, y: 0.38, street: 'Grønlandsleiret', district: 'Grønland' },
-    { key: 'Operahuset', desc: 'The Opera House is a Riker stronghold. Assault from the waterfront.', type: 'stronghold', diff: 'heroic', color: '#00ccff', x: 0.60, y: 0.62, street: 'Kirsten Flagstads Plass', district: 'Bjørvika' },
-    { key: 'Frogner Park', desc: 'Bounty: Elite Hunter spotted near Vigeland sculpture park.', type: 'bounty', diff: 'challenging', color: '#3a8fd4', x: 0.18, y: 0.28, street: 'Kirkeveien', district: 'Frogner' },
-    { key: 'Grünerløkka Raid', desc: 'Clan raid — 4 agents needed. Black Tusk has fortified the neighborhood.', type: 'raid', diff: 'heroic', color: '#2ecc71', x: 0.72, y: 0.22, street: 'Thorvald Meyers gate', district: 'Grünerløkka' },
-    { key: 'Stortinget', desc: 'Retake parliament from True Sons. Dark Zone perimeter nearby.', type: 'mission', diff: 'challenging', color: '#a335ee', x: 0.44, y: 0.36, street: 'Stortingsgata', district: 'Sentrum' },
-    { key: 'Ekeberg Ridge', desc: 'Dark Zone — Contaminated zone, contested by multiple factions.', type: 'dark_zone', diff: 'heroic', color: '#e74c3c', x: 0.76, y: 0.68, street: 'Kongshavn', district: 'Ekeberg' },
-    { key: 'Daily: Youngstorget', desc: 'Daily bounty — Clear the square and resupply the safe house.', type: 'daily', diff: 'normal', color: '#f4a116', x: 0.55, y: 0.32, street: 'Møllergata', district: 'Sentrum' },
-    { key: 'Tjuvholmen Base', desc: 'Clan capture point — Hold Tjuvholmen gallery district for 24h.', type: 'base_raid', diff: 'heroic', color: '#9b59b6', x: 0.20, y: 0.66, street: 'Tjuvholmen Allé', district: 'Tjuvholmen' },
+    { key: 'Aker Brygge Pier',   dbName: 'Aker Brygge Pier',   desc: 'Secure the waterfront — Rogue agents control the ferry terminals.', type: 'mission',    diff: 'hard',        color: '#a335ee', x: 0.28, y: 0.58, street: 'Bryggegata',           district: 'Aker Brygge'   },
+    { key: 'Karl Johans Gate',   dbName: 'Karl Johans Gate',   desc: "Street fight through Oslo's main boulevard. Clear all checkpoints.", type: 'street_fight', diff: 'challenging', color: '#e74c3c', x: 0.50, y: 0.40, street: 'Karl Johans gate',     district: 'Sentrum'       },
+    { key: 'Grønland Sweep',     dbName: 'Gronland Sweep',     desc: 'Neutralize Black Tusk cell in the Grønland district.',              type: 'expedition', diff: 'heroic',      color: '#f4a116', x: 0.68, y: 0.38, street: 'Grønlandsleiret',       district: 'Grønland'      },
+    { key: 'Operahuset',         dbName: 'Operahuset',         desc: 'The Opera House is a Riker stronghold. Assault from the waterfront.', type: 'stronghold', diff: 'heroic',    color: '#00ccff', x: 0.60, y: 0.62, street: 'Kirsten Flagstads Plass', district: 'Bjørvika'    },
+    { key: 'Frogner Park',       dbName: 'Frogner Park',       desc: 'Bounty: Elite Hunter spotted near Vigeland sculpture park.',        type: 'bounty',     diff: 'challenging', color: '#3a8fd4', x: 0.18, y: 0.28, street: 'Kirkeveien',            district: 'Frogner'       },
+    { key: 'Grünerløkka Raid',  dbName: 'Grunerloekka Raid',  desc: 'Clan raid — 4 agents needed. Black Tusk has fortified the neighborhood.', type: 'raid', diff: 'heroic',     color: '#2ecc71', x: 0.72, y: 0.22, street: 'Thorvald Meyers gate',  district: 'Grünerløkka'  },
+    { key: 'Stortinget',         dbName: 'Stortinget',         desc: 'Retake parliament from True Sons. Dark Zone perimeter nearby.',      type: 'mission',    diff: 'challenging', color: '#a335ee', x: 0.44, y: 0.36, street: 'Stortingsgata',          district: 'Sentrum'       },
+    { key: 'Ekeberg Ridge',      dbName: 'Ekeberg Ridge',      desc: 'Dark Zone — Contaminated zone, contested by multiple factions.',    type: 'dark_zone',  diff: 'heroic',      color: '#e74c3c', x: 0.76, y: 0.68, street: 'Kongshavn',              district: 'Ekeberg'       },
+    { key: 'Daily: Youngstorget', dbName: 'Daily Youngstorget', desc: 'Daily bounty — Clear the square and resupply the safe house.',   type: 'daily',      diff: 'normal',      color: '#f4a116', x: 0.55, y: 0.32, street: 'Møllergata',             district: 'Sentrum'       },
+    { key: 'Tjuvholmen Base',    dbName: 'Tjuvholmen Base',    desc: 'Clan capture point — Hold Tjuvholmen gallery district for 24h.',   type: 'base_raid',  diff: 'heroic',      color: '#9b59b6', x: 0.20, y: 0.66, street: 'Tjuvholmen Allé',       district: 'Tjuvholmen'    },
   ],
 
   init() {
@@ -55,8 +55,7 @@ this.ctx = this.canvas.getContext('2d');
   getMergedMissions() {
     return this.osloMissions.map(loc => {
       const dbMatch = this.missions.find(m =>
-        m.name.toLowerCase().includes(loc.district.toLowerCase().split(' ')[0]) ||
-        loc.key.toLowerCase().includes(m.name.toLowerCase().split(' ')[0])
+        m.name.toLowerCase() === loc.dbName.toLowerCase()
       );
       return { ...loc, dbMission: dbMatch || null };
     });
