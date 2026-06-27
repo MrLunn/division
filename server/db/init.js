@@ -287,16 +287,16 @@ const seedMissions = `
 DELETE FROM mission_runs;
 DELETE FROM missions;
 INSERT INTO missions (name, description, type, difficulty, map_x, map_y, min_gs, xp_reward, credit_reward, loot_rolls, loot_bonus_rarity, duration_secs) VALUES
-('Aker Brygge Pier',    'Secure the waterfront — Rogue agents control the Aker Brygge ferry terminals.',      'mission',    'hard',        0.28, 0.58, 100, 2400, 1200, 3, 'rare',   45),
-('Karl Johans Gate',    'Street fight through Oslo main boulevard. Clear all Black Tusk checkpoints.',         'street_fight','challenging', 0.50, 0.40, 200, 3600, 2000, 3, 'epic',   60),
-('Gronland Sweep',      'Neutralize Black Tusk cell that has fortified the Gronland district.',                'expedition', 'heroic',      0.68, 0.38, 350, 6000, 4000, 4, 'named',  90),
-('Operahuset',          'The Oslo Opera House is a Riker stronghold. Assault from the Bjorvika waterfront.',  'stronghold', 'heroic',      0.60, 0.62, 400, 8000, 5000, 4, 'named',  90),
-('Frogner Park',        'Bounty: Elite Hunter spotted near Vigelandsparken. Track and eliminate.',             'bounty',     'challenging', 0.18, 0.28, 200, 2000, 1000, 2, 'rare',   40),
-('Grunerloekka Raid',   'Clan raid — True Sons have fortified Thorvald Meyers gate with heavy weapons.',      'raid',       'heroic',      0.72, 0.22, 450,12000, 8000, 6, 'exotic', 180),
-('Stortinget',          'Retake the Norwegian parliament from True Sons. Dark Zone perimeter breached.',       'mission',    'challenging', 0.44, 0.36, 200, 3200, 1800, 3, 'epic',   60),
-('Ekeberg Ridge',       'Dark Zone on Ekeberg ridge — contested by Outcasts. Loot extraction active.',        'dark_zone',  'heroic',      0.76, 0.68, 300, 1800,  500, 2, 'epic',   30),
-('Daily Youngstorget',  'Daily bounty — Clear Youngstorget square and resupply the Sentrum safe house.',      'daily',      'normal',      0.55, 0.32,   0, 1200,  600, 2, 'rare',   30),
-('Tjuvholmen Base',     'Clan capture point — Storm Tjuvholmen gallery district and hold it for 24 hours.',   'base_raid',  'heroic',      0.20, 0.66, 300, 4000, 2000, 4, 'named',  120)
+('Aker Brygge Pier',    'Young Guns have seized the Aker Brygge ferry terminals. The 2006 waterfront shootout started here — finish it.',                   'mission',    'hard',        0.28, 0.58, 100, 2400, 1200, 3, 'rare',   45),
+('Karl Johans Gate',    'B-Gjengen control every block from Stortinget to Jernbanetorget. Street fight down the main boulevard.',                            'street_fight','challenging', 0.50, 0.40, 200, 3600, 2000, 3, 'epic',   60),
+('Gronland Sweep',      '313-nettverket has fortified Grønland. Intel points to a weapons cache on Grønlandsleiret. Neutralize the cell.',                  'expedition', 'heroic',      0.68, 0.38, 350, 6000, 4000, 4, 'named',  90),
+('Operahuset',          'Balkan Brotherhood turned the Opera House into an arms staging ground. Serbian passports, Yugoslav-era weapons. Assault at dawn.',  'stronghold', 'heroic',      0.60, 0.62, 400, 8000, 5000, 4, 'named',  90),
+('Frogner Park',        'Bandidos Norway spotted caching weapons near Vigelandsparken. Arms trafficking enforcer — take him down.',                          'bounty',     'challenging', 0.18, 0.28, 200, 2000, 1000, 2, 'rare',   40),
+('Grunerloekka Raid',   'Comanches MC barricaded Thorvald Meyers gate. Banned by the Supreme Court — they have nothing left to lose. 4 agents required.',   'raid',       'heroic',      0.72, 0.22, 450,12000, 8000, 6, 'exotic', 180),
+('Stortinget',          'B-Gjengen are using parliament square as a narcotics dead drop. Shut it down before morning crowds arrive.',                        'mission',    'challenging', 0.44, 0.36, 200, 3200, 1800, 3, 'epic',   60),
+('Ekeberg Ridge',       'Three factions — Young Guns, 313, and Balkan Brotherhood — fighting over Ekeberg ridge. Dark Zone extraction point active.',        'dark_zone',  'heroic',      0.76, 0.68, 300, 1800,  500, 2, 'epic',   30),
+('Daily Youngstorget',  'Young Guns running open-air drug sales from Youngstorget. Clear the square before market hours.',                                   'daily',      'normal',      0.55, 0.32,   0, 1200,  600, 2, 'rare',   30),
+('Tjuvholmen Base',     'Balkan Brotherhood money-laundering hub in the gallery district. Accountants, enforcers, Serbian passports. Raid the compound.',    'base_raid',  'heroic',      0.20, 0.66, 300, 4000, 2000, 4, 'named',  120)
 ;
 `;
 
@@ -309,7 +309,7 @@ INSERT INTO item_definitions (name, slot, rarity, base_gs, gs_variance, is_named
 ('Nemesis',        'primary',  'exotic', 500, 0, false, true,  'Nemesis',             'Justice, delayed but never denied.'),
 ('Merciless',      'primary',  'exotic', 500, 0, false, true,  'Binary Trigger',      'No mercy for the wicked.'),
 ('Chameleon',      'primary',  'exotic', 495, 0, false, true,  'Adaptive Instincts',  'Adapt or die.'),
-('Pestilence',     'primary',  'exotic', 495, 0, false, true,  'Plague of the Outcasts','Spread the sickness.'),
+('Pestilence',     'primary',  'exotic', 495, 0, false, true,  'Plague of Oslo',      'The city was already sick before we arrived.'),
 ('The Chatterbox', 'primary',  'exotic', 490, 0, false, true,  'Incessant Chatter',   'Never stops talking. Never misses.'),
 ('Bullet King',    'primary',  'exotic', 490, 0, false, true,  'Never Empty',         'The mag never runs dry.'),
 ('Providence Mask','mask',     'exotic', 500, 0, false, true,  'Scholar',             'Knowledge is the ultimate weapon.'),

@@ -4,7 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const combatEngine = require('../engine/combat');
 const { simulatePvpVsBot } = require('../engine/bots');
 
-const DZ_ZONES = ['DZ01 — South Perimeter', 'DZ03 — Hell\'s Kitchen', 'DZ06 — Financial District'];
+const DZ_ZONES = ['DZ-SOUTH — Bjørvika & Gamlebyen', 'DZ-CENTRAL — Grønland & Tøyen', 'DZ-NORTH — Grünerløkka & Storo'];
 
 // GET /api/pvp/zones — active dark zone state
 router.get('/zones', requireAuth, async (req, res) => {

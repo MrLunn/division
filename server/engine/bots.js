@@ -6,14 +6,24 @@
 
 const db = require('../db/pool');
 
-// Oslo-themed bot names
+// Oslo-themed bot names — mix of Norwegian and multicultural
 const BOT_NAMES = [
-  'Ghost_Larsen','NightOwl_Berg','IronFjord','ShadowKong',
-  'Viper_Oslo','Arctic_Fox','DarkZone_Dahl','Reaper_Knudsen',
-  'Storm_Eriksen','Phantom_Vik','Rogue_Hansen','NordAgent',
-  'BlizzardOp','TacticalHans','Ghost_Thorsen','Iron_Nygaard',
-  'Specter_Mo','OutcastHunter','SHD_Wraith','Operator_Lund',
+  'Ghost_Larsen', 'NightOwl_Berg', 'IronFjord', 'ShadowKong',
+  'Viper_Oslo', 'Arctic_Fox', 'Rogue_Hansen', 'NordAgent',
+  'BlizzardOp', 'TacticalHans', 'Ghost_Thorsen', 'Iron_Nygaard',
+  'Specter_Mo', 'SHD_Wraith', 'Operator_Lund', 'Storm_Eriksen',
+  'Phantom_Vik', 'Reaper_Knudsen', 'DarkZone_Dahl', 'Arctic_Skar',
 ];
+
+// Faction-specific enemy names for the activity feed
+const FACTION_ENEMIES = {
+  'Young Guns':         ['YG enforcer', 'Young Guns lieutenant', 'YG runner'],
+  'B-Gjengen':          ['B-Gang soldier', 'B-Gjengen captain', 'B-Gang dealer'],
+  '313-nettverket':     ['313 operative', '313 lookout', 'nettverket enforcer'],
+  'Balkan Brotherhood': ['Brotherhood muscle', 'Balkan enforcer', 'Brotherhood courier'],
+  'Bandidos Norway':    ['Bandidos patch-holder', 'Bandidos prospect', 'MC enforcer'],
+  'Comanches MC':       ['Comanche rider', 'MC captain', 'Comanches enforcer'],
+};
 
 // Bot tier presets
 const BOT_TIERS = [
@@ -99,13 +109,16 @@ async function generateBotActivity(io) {
     while (botB === botA) botB = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
 
     const events = [
-      () => global.broadcastActivity(io, { type:'pvp',     text:`☠ ${botA} eliminated ${botB} in the Dark Zone` }),
-      () => global.broadcastActivity(io, { type:'mission', text:`📍 ${botA} completed Operahuset [HEROIC]` }),
-      () => global.broadcastActivity(io, { type:'mission', text:`⚔ ${botB} cleared Karl Johans Gate [STREET FIGHT]` }),
-      () => global.broadcastActivity(io, { type:'loot',    text:`⚡ ${botA} found an EXOTIC drop from Grünerløkka Raid` }),
-      () => global.broadcastActivity(io, { type:'bounty',  text:`☠ BOUNTY: ${botA} placed 2,500¢ on ${botB}` }),
-      () => global.broadcastActivity(io, { type:'pvp',     text:`☠ ${botB} went ROGUE in Grønland — tread carefully` }),
-      () => global.broadcastActivity(io, { type:'mission', text:`🏰 ${botA} stormed Tjuvholmen Base [HEROIC]` }),
+      () => global.broadcastActivity(io, { type:'pvp',     text:`☠ ${botA} eliminated ${botB} in the Grønland Dark Zone` }),
+      () => global.broadcastActivity(io, { type:'mission', text:`📍 ${botA} neutralized a 313-nettverket cell on Grønlandsleiret` }),
+      () => global.broadcastActivity(io, { type:'mission', text:`⚔ ${botB} cleared B-Gjengen from Karl Johans Gate [STREET FIGHT]` }),
+      () => global.broadcastActivity(io, { type:'loot',    text:`⚡ ${botA} found an EXOTIC drop raiding Balkan Brotherhood at Bjørvika` }),
+      () => global.broadcastActivity(io, { type:'bounty',  text:`☠ BOUNTY: ${botA} placed 3,200¢ on ${botB} after Aker Brygge ambush` }),
+      () => global.broadcastActivity(io, { type:'pvp',     text:`☠ ${botB} went ROGUE after eliminating a Bandidos informant in Frogner` }),
+      () => global.broadcastActivity(io, { type:'mission', text:`🏰 ${botA} raided Comanches MC compound in Grünerløkka [HEROIC]` }),
+      () => global.broadcastActivity(io, { type:'mission', text:`📍 ${botB} broke up Young Guns drug sales at Youngstorget` }),
+      () => global.broadcastActivity(io, { type:'loot',    text:`⚡ ${botA} seized Balkan Brotherhood weapons cache at Tjuvholmen` }),
+      () => global.broadcastActivity(io, { type:'pvp',     text:`☠ ${botA} and ${botB} clashed over the Ekeberg ridge extraction point` }),
     ];
 
     const pick = events[Math.floor(Math.random() * events.length)];
