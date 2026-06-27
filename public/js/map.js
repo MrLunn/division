@@ -306,7 +306,7 @@ this.ctx = this.canvas.getContext('2d');
       tt.innerHTML=`<h4 style="color:${m.color}">${m.key}</h4>
         <div class="tt-diff" style="color:${m.color}88">${typeLabels[m.type]||m.type.toUpperCase()} · ${m.diff.toUpperCase()}</div>
         <div style="font-size:11px;color:var(--muted2);margin-bottom:6px">📍 ${m.street}, ${m.district}</div>
-        <div style="font-size:11px;color:var(--div-text);margin-bottom:8px">${m.desc}</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">${m.desc}</div>
         ${m.dbMission?'<div class="tt-reward">+'+m.dbMission.xp_reward?.toLocaleString()+' XP · +'+m.dbMission.credit_reward?.toLocaleString()+' ¢</div>':'<div class="tt-reward" style="color:var(--muted2)">No mission data</div>'}
         <button class="tt-launch" onclick="window.Game && window.Game.runMission('" + (m.dbMission ? m.dbMission.id : '') + "', '" + m.key + "')">⚡ LAUNCH MISSION</button>`;
       tt.style.display='block';

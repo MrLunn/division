@@ -81,9 +81,10 @@
         </nav>
       </div>
       <div class="topbar-right">
-        <span id="hud-name" class="agent-name"></span>
-        <span id="hud-level" class="hud-level"></span>
-        <span id="hud-gs" class="hud-gs"></span>
+        <div class="agent-info">
+          <div id="hud-name" class="agent-name"></div>
+          <div class="agent-meta"><span id="hud-level"></span> &nbsp;·&nbsp; GS <span id="hud-gs" style="color:var(--accent);font-family:var(--font-hud)"></span></div>
+        </div>
         <button class="btn-logout" onclick="logout()">EXTRACT</button>
       </div>
     </div>
@@ -91,20 +92,27 @@
     <!-- HUD BAR -->
     <div id="hud-bar">
       <div class="hud-stat">
+        <div class="hud-icon" style="color:#2ecc71">♥</div>
         <div class="hud-label">HEALTH</div>
-        <div class="hud-bar-track"><div id="hud-health-bar" class="hud-bar-fill health"></div></div>
+        <div class="hud-bar-track"><div id="hud-health-bar" class="hud-bar-fill health" style="width:100%"></div></div>
+        <div id="hud-health-num" class="hud-bar-num health">100%</div>
       </div>
       <div class="hud-stat">
+        <div class="hud-icon" style="color:#5dade2">◈</div>
         <div class="hud-label">ARMOR</div>
-        <div class="hud-bar-track"><div id="hud-armor-bar" class="hud-bar-fill armor"></div></div>
+        <div class="hud-bar-track"><div id="hud-armor-bar" class="hud-bar-fill armor" style="width:100%"></div></div>
+        <div id="hud-armor-num" class="hud-bar-num armor">100%</div>
       </div>
-      <div class="hud-stat hud-credits">
+      <div class="hud-stat">
+        <div class="hud-icon" style="color:#af7ac5">◆</div>
+        <div class="hud-label">XP</div>
+        <div class="hud-bar-track"><div id="hud-xp-bar" class="hud-bar-fill xp" style="width:0%"></div></div>
+        <div id="hud-xp-num" class="hud-bar-num xp">0%</div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-icon" style="color:#e8890c">¢</div>
         <div class="hud-label">CREDITS</div>
         <div id="hud-credits" class="hud-val"></div>
-      </div>
-      <div class="hud-stat">
-        <div class="hud-label">XP</div>
-        <div class="hud-bar-track"><div id="hud-xp-bar" class="hud-bar-fill xp"></div></div>
       </div>
     </div>
 

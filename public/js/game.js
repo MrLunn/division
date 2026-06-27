@@ -81,16 +81,23 @@ const Game = {
     if (!c) return;
     document.getElementById('hud-name').textContent = c.name;
     document.getElementById('hud-level').textContent = `LV.${c.level}`;
-    document.getElementById('hud-gs').textContent = `GS ${c.gear_score || 0}`;
+    document.getElementById('hud-gs').textContent = c.gear_score || 0;
     document.getElementById('hud-credits').textContent = parseInt(c.credits || 0).toLocaleString() + ' ¢';
 
-    const hpPct = Math.min(100, 50 + (c.gear_score || 0) / 10) + '%';
-    const armorPct = Math.min(100, 30 + (c.gear_score || 0) / 15) + '%';
-    const xpPct = Math.min(100, ((c.xp % 10000) / 10000) * 100) + '%';
+    const hp    = Math.min(100, 50 + (c.gear_score || 0) / 10);
+    const armor = Math.min(100, 30 + (c.gear_score || 0) / 15);
+    const xp    = Math.min(100, ((c.xp % 10000) / 10000) * 100);
 
-    document.getElementById('hud-health-bar').style.width = hpPct;
-    document.getElementById('hud-armor-bar').style.width = armorPct;
-    document.getElementById('hud-xp-bar').style.width = xpPct;
+    document.getElementById('hud-health-bar').style.width = hp + '%';
+    document.getElementById('hud-armor-bar').style.width  = armor + '%';
+    document.getElementById('hud-xp-bar').style.width     = xp + '%';
+
+    const hn = document.getElementById('hud-health-num');
+    const an = document.getElementById('hud-armor-num');
+    const xn = document.getElementById('hud-xp-num');
+    if (hn) hn.textContent = Math.round(hp) + '%';
+    if (an) an.textContent = Math.round(armor) + '%';
+    if (xn) xn.textContent = Math.round(xp) + '%';
 
     const rogueIndicator = document.getElementById('rogue-indicator');
     if (rogueIndicator) rogueIndicator.style.display = c.is_rogue ? 'block' : 'none';
