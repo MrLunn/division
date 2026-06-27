@@ -169,6 +169,10 @@ router.post('/open-cache', requireAuth, async (req, res) => {
 
     if (!item) return res.status(500).json({ error: 'Cache empty' });
 
+    // Tick cache contracts
+    const { tickContract } = require('./contracts');
+    await tickContract(req.character.id, 'caches', 1);
+
     // Log exotic to feed
     if (item.rarity === 'exotic') {
       await db.query(`

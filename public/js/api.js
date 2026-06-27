@@ -76,3 +76,24 @@ const API = {
 };
 
 window.API = API;
+
+const ContractsAPI = {
+  get:   ()   => API.get('/contracts'),
+  claim: (id) => API.post(`/contracts/${id}/claim`),
+};
+
+const BountiesAPI = {
+  get:    ()                       => API.get('/bounties'),
+  post:   (targetId, reward, reason) => API.post('/bounties', { targetId, reward, reason }),
+  claim:  (id)                     => API.post(`/bounties/${id}/claim`),
+};
+
+const EventsAPI = {
+  active: ()   => API.get('/events/active'),
+  claim:  (id) => API.post(`/events/${id}/claim`),
+};
+
+const RecalibrationAPI = {
+  preview: (invId)              => API.get(`/recalibration/${invId}`),
+  reroll:  (invId, statToReroll) => API.post(`/recalibration/${invId}`, { statToReroll }),
+};

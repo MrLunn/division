@@ -73,11 +73,13 @@
       </div>
       <div class="topbar-center">
         <nav>
-          <button class="navbtn active" data-view="map" onclick="switchView('map')">MAP</button>
-          <button class="navbtn" data-view="inventory" onclick="switchView('inventory')">INVENTORY</button>
-          <button class="navbtn" data-view="darkzone" onclick="switchView('darkzone')">DARK ZONE</button>
-          <button class="navbtn" data-view="clans" onclick="switchView('clans')">CLANS</button>
-          <button class="navbtn" data-view="leaderboard" onclick="switchView('leaderboard')">LEADERBOARD</button>
+          <button class="navbtn active" data-view="map"         onclick="switchView('map')">MAP</button>
+          <button class="navbtn"        data-view="inventory"   onclick="switchView('inventory')">INVENTORY</button>
+          <button class="navbtn"        data-view="contracts"   onclick="switchView('contracts')">CONTRACTS</button>
+          <button class="navbtn"        data-view="bounties"    onclick="switchView('bounties')">BOUNTIES</button>
+          <button class="navbtn"        data-view="darkzone"    onclick="switchView('darkzone')">DARK ZONE</button>
+          <button class="navbtn"        data-view="clans"       onclick="switchView('clans')">CLANS</button>
+          <button class="navbtn"        data-view="leaderboard" onclick="switchView('leaderboard')">LEADERBOARD</button>
         </nav>
       </div>
       <div class="topbar-right">
@@ -287,7 +289,93 @@
         </div>
       </div>
 
+      <!-- CONTRACTS VIEW -->
+      <div id="view-contracts" class="view">
+        <div style="display:grid;grid-template-columns:1fr 360px;height:100%;gap:0">
+          <div style="padding:14px;overflow-y:auto">
+            <div class="panel-title" style="margin-bottom:12px">// DAILY CONTRACTS <span id="contracts-reset" style="color:var(--muted);font-size:10px;font-weight:400;letter-spacing:1px"></span></div>
+            <div id="contracts-list" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+          <div style="padding:14px;border-left:1px solid var(--border);overflow-y:auto">
+            <div class="panel-title" style="margin-bottom:12px">// RECALIBRATION BENCH</div>
+            <div style="font-size:11px;color:var(--muted2);line-height:1.7;margin-bottom:14px">
+              Select any item from your stash, then choose a stat to reroll.<br>
+              <span style="color:var(--accent)">One reroll per item.</span> Higher rarity = higher cost.
+            </div>
+            <div id="recal-cost-table" style="margin-bottom:14px">
+              <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:6px">REROLL COSTS</div>
+              <div class="pvp-stat-row"><span class="pvs-label">Common</span><span class="pvs-val">500 ¢</span></div>
+              <div class="pvp-stat-row"><span class="pvs-label">Rare</span><span class="pvs-val">2,000 ¢</span></div>
+              <div class="pvp-stat-row"><span class="pvs-label">Epic</span><span class="pvs-val">6,000 ¢</span></div>
+              <div class="pvp-stat-row"><span class="pvs-label">Named</span><span class="pvs-val">15,000 ¢</span></div>
+              <div class="pvp-stat-row"><span class="pvs-label">Exotic</span><span class="pvs-val">30,000 ¢</span></div>
+            </div>
+            <div id="recal-panel" style="color:var(--muted);font-size:11px">Click an item in your stash to recalibrate it.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOUNTIES VIEW -->
+      <div id="view-bounties" class="view">
+        <div style="display:grid;grid-template-columns:1fr 300px;height:100%;gap:0">
+          <div style="padding:14px;overflow-y:auto">
+            <div class="panel-title" style="margin-bottom:12px">// ACTIVE BOUNTIES</div>
+            <div id="bounties-list" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+          <div style="padding:14px;border-left:1px solid var(--border);overflow-y:auto">
+            <div class="panel-title" style="margin-bottom:12px">// POST BOUNTY</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="form-group">
+                <label>TARGET AGENT NAME</label>
+                <input type="text" id="bounty-target-name" placeholder="Agent handle" style="background:var(--bg3);border:1px solid var(--border2);border-left:2px solid var(--border3);color:var(--text);padding:9px 12px;font-family:var(--font-ui);font-size:13px;outline:none;width:100%">
+              </div>
+              <div class="form-group">
+                <label>REWARD (min 500 ¢)</label>
+                <input type="number" id="bounty-reward" placeholder="1000" min="500" style="background:var(--bg3);border:1px solid var(--border2);border-left:2px solid var(--border3);color:var(--text);padding:9px 12px;font-family:var(--font-hud);font-size:13px;outline:none;width:100%">
+              </div>
+              <div class="form-group">
+                <label>REASON (optional)</label>
+                <input type="text" id="bounty-reason" placeholder="Killed me in the Dark Zone" maxlength="120" style="background:var(--bg3);border:1px solid var(--border2);border-left:2px solid var(--border3);color:var(--text);padding:9px 12px;font-family:var(--font-ui);font-size:13px;outline:none;width:100%">
+              </div>
+              <button class="btn-danger" onclick="Game.postBounty()" style="width:100%">POST BOUNTY</button>
+              <div id="bounty-error" style="color:var(--red);font-size:11px;min-height:16px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /views -->
+
+    <!-- CACHE EVENT BANNER -->
+    <div id="cache-event-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(7,10,13,0.97);border-top:2px solid var(--accent);padding:10px 24px;display:none;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:9px;letter-spacing:3px;color:var(--accent);margin-bottom:2px">⚡ CACHE EVENT ACTIVE</div>
+        <div id="cache-event-text" style="font-size:14px;font-weight:700;color:#fff"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div id="cache-event-timer" style="font-family:var(--font-hud);font-size:22px;color:var(--accent)"></div>
+        <button id="cache-event-btn" class="btn-primary" style="padding:10px 24px" onclick="Game.claimCacheEvent()">EXTRACT CACHE</button>
+      </div>
+    </div>
+
+    <!-- BOUNTY NOTIFICATION -->
+    <div id="bounty-alert" style="display:none;position:fixed;top:90px;right:20px;z-index:300;background:var(--bg2);border:1px solid var(--red);border-left:3px solid var(--red);padding:14px 18px;max-width:300px;animation:slideIn 0.3s ease">
+      <div style="font-size:9px;letter-spacing:3px;color:var(--red);margin-bottom:4px">☠ BOUNTY PLACED ON YOU</div>
+      <div id="bounty-alert-text" style="font-size:13px;color:#fff;margin-bottom:8px"></div>
+      <button onclick="document.getElementById('bounty-alert').style.display='none'" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;letter-spacing:1px">DISMISS</button>
+    </div>
+
+    <!-- RECALIBRATION MODAL -->
+    <div id="recal-modal" class="modal" style="display:none">
+      <div class="modal-box">
+        <div class="modal-title">RECALIBRATION BENCH</div>
+        <div id="recal-modal-content"></div>
+        <div class="modal-actions">
+          <button id="recal-confirm-btn" class="btn-primary" style="display:none">EXECUTE REROLL</button>
+          <button class="btn-secondary" onclick="hideModal('recal-modal')">CANCEL</button>
+        </div>
+      </div>
+    </div>
 
     <!-- MISSION RUN MODAL -->
     <div id="mission-modal" class="modal" style="display:none">

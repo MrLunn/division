@@ -105,6 +105,15 @@ router.post('/:id/run', requireAuth, async (req, res) => {
         INSERT INTO activity_feed (type, actor_name, detail)
         VALUES ('mission_complete', $1, $2)
       `, [req.character.name, `Completed ${mission.name} [${mission.difficulty.toUpperCase()}]`]);
+
+      // Tick daily contracts
+      const { tickContract } = require('./contracts');
+      await tickContract(req.character.id, 'missions', 1);
+      if (mission.type === 'street_fight') await tickContract(req.character.id, 'street', 1);
+      if (mission.type === 'dark_zone')    await tickContract(req.character.id, 'darkzone', 1);
+      // Tick kills from combat log
+      const killCount = (combatResult.log || []).filter(l => l.includes('eliminated')).length;
+      if (killCount > 0) await tickContract(req.character.id, 'kills', killCount);
     }
 
     // Update run record

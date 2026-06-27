@@ -36,12 +36,16 @@ app.use((req, _res, next) => {
 // ============================================================
 // API ROUTES
 // ============================================================
-app.use('/api/auth',        require('./routes/auth'));
-app.use('/api/missions',    require('./routes/missions'));
-app.use('/api/inventory',   require('./routes/inventory'));
-app.use('/api/clans',       require('./routes/clans'));
-app.use('/api/pvp',         require('./routes/pvp'));
-app.use('/api/leaderboard', require('./routes/leaderboard'));
+app.use('/api/auth',           require('./routes/auth'));
+app.use('/api/missions',       require('./routes/missions'));
+app.use('/api/inventory',      require('./routes/inventory'));
+app.use('/api/clans',          require('./routes/clans'));
+app.use('/api/pvp',            require('./routes/pvp'));
+app.use('/api/leaderboard',    require('./routes/leaderboard'));
+app.use('/api/contracts',      require('./routes/contracts'));
+app.use('/api/bounties',       require('./routes/bounties'));
+app.use('/api/events',         require('./routes/events'));
+app.use('/api/recalibration',  require('./routes/recalibration'));
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'online', time: new Date() }));
@@ -139,6 +143,14 @@ setInterval(async () => {
     console.error('Leaderboard refresh failed:', err.message);
   }
 }, 60 * 60 * 1000);
+
+// ============================================================
+// CACHE EVENT SCHEDULER — spawn every 45 minutes
+// ============================================================
+const { spawnCacheEvent } = require('./routes/events');
+setInterval(() => spawnCacheEvent(io), 45 * 60 * 1000);
+// Spawn one shortly after startup
+setTimeout(() => spawnCacheEvent(io), 90 * 1000);
 
 // ============================================================
 // START

@@ -45,6 +45,7 @@ const Game = {
     this.connectSocket();
     this.updateHUD();
     this.loadView('map');
+    setTimeout(() => this.checkActiveEvent(), 2000);
   },
 
   // ============================================================
@@ -70,6 +71,37 @@ const Game = {
     this.socket.on('world:agent_online', ({ name }) => {
       if (name !== this.character.name)
         this.notify(`${name} deployed to the field`, 'info');
+    });
+
+    // Bounty placed on you
+    this.socket.on('bounty:placed', ({ reward, poster, reason }) => {
+      const alertEl  = document.getElementById('bounty-alert');
+      const alertTxt = document.getElementById('bounty-alert-text');
+      if (alertEl && alertTxt) {
+        alertTxt.innerHTML = `<strong style="color:var(--accent)">${poster}</strong> posted ${Number(reward).toLocaleString()} ¢ on your head${reason ? `<br><em style="color:var(--muted2)">"${reason}"</em>` : ''}`;
+        alertEl.style.display = 'block';
+      }
+      this.notify(`☠ You have a bounty on your head! ${Number(reward).toLocaleString()} ¢`, 'error', 6000);
+      this.flashScreen('#e74c3c');
+    });
+
+    // Cache event spawned
+    this.socket.on('event:cache_spawned', (event) => {
+      this.showCacheEvent(event);
+      this.notify(`⚡ CACHE EVENT: ${event.rarity.toUpperCase()} cache at ${event.district}!`, 'success', 5000);
+    });
+
+    // Cache event claimed by someone else
+    this.socket.on('event:cache_claimed', ({ claimedBy, district }) => {
+      const banner = document.getElementById('cache-event-banner');
+      const text   = document.getElementById('cache-event-text');
+      if (banner) {
+        if (text) text.textContent = `${district} cache secured by ${claimedBy}`;
+        const btn = document.getElementById('cache-event-btn');
+        if (btn) btn.style.display = 'none';
+        if (this._eventTimer) clearInterval(this._eventTimer);
+        setTimeout(() => { if (banner) banner.style.display = 'none'; }, 5000);
+      }
     });
   },
 
@@ -140,6 +172,8 @@ const Game = {
     const loaders = {
       map:         () => this.loadMapView(),
       inventory:   () => this.loadInventoryView(),
+      contracts:   () => this.loadContractsView(),
+      bounties:    () => this.loadBountiesView(),
       darkzone:    () => this.loadDarkZoneView(),
       clans:       () => this.loadClansView(),
       leaderboard: () => this.loadLeaderboardView(),
@@ -951,7 +985,310 @@ const Game = {
   },
 
   delay: (ms) => new Promise(r => setTimeout(r, ms)),
-};
+
+  // ============================================================
+  // DAILY CONTRACTS
+  // ============================================================
+  async loadContractsView() {
+    await Promise.all([this.loadContracts(), this.loadRecalibrationPanel()]);
+  },
+
+  async loadContracts() {
+    try {
+      const data = await ContractsAPI.get();
+      const el = document.getElementById('contracts-list');
+      const resetEl = document.getElementById('contracts-reset');
+      if (resetEl) resetEl.textContent = `RESETS AT MIDNIGHT OSLO TIME`;
+
+      if (!data.contracts.length) {
+        el.innerHTML = '<div style="color:var(--muted);font-size:12px">No contracts today — check back tomorrow.</div>';
+        return;
+      }
+
+      el.innerHTML = data.contracts.map(c => {
+        const prog = c.progress || 0;
+        const pct  = Math.min(100, (prog / c.target) * 100);
+        const done = c.completed;
+        const claimed = c.claimed;
+        const color = done ? 'var(--accent)' : 'var(--border3)';
+        return `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${color};padding:14px 16px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:${done ? 'var(--accent)' : 'var(--text)'};margin-bottom:3px">${c.description}</div>
+                <div style="font-size:10px;color:var(--muted2);letter-spacing:1px">
+                  +${Number(c.xp_reward).toLocaleString()} XP &nbsp;·&nbsp; +${Number(c.credit_reward).toLocaleString()} ¢
+                </div>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <div style="font-family:var(--font-hud);font-size:18px;color:${done ? 'var(--accent)' : 'var(--text2)'}">
+                  ${prog}/${c.target}
+                </div>
+                ${done && !claimed
+                  ? `<button class="btn-primary" style="padding:4px 14px;font-size:10px;margin-top:4px" onclick="Game.claimContract('${c.id}')">CLAIM</button>`
+                  : claimed ? `<div style="font-size:10px;color:var(--green);letter-spacing:1px;margin-top:4px">✓ CLAIMED</div>` : ''
+                }
+              </div>
+            </div>
+            <div style="height:4px;background:var(--border);margin-top:4px">
+              <div style="height:100%;width:${pct}%;background:${done ? 'var(--accent)' : 'var(--border3)'};transition:width 0.6s ease"></div>
+            </div>
+          </div>`;
+      }).join('');
+    } catch (e) {
+      this.notify(e.message, 'error');
+    }
+  },
+
+  async claimContract(id) {
+    try {
+      const r = await ContractsAPI.claim(id);
+      this.notify(`✓ ${r.message} · +${r.xp.toLocaleString()} XP · +${r.credits.toLocaleString()} ¢`, 'success', 4000);
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadContracts();
+    } catch (e) { this.notify(e.message, 'error'); }
+  },
+
+  // ============================================================
+  // BOUNTY BOARD
+  // ============================================================
+  async loadBountiesView() {
+    try {
+      const data = await BountiesAPI.get();
+      const el = document.getElementById('bounties-list');
+      if (!data.bounties.length) {
+        el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">No active bounties. Be the first to post one.</div>';
+        return;
+      }
+      el.innerHTML = data.bounties.map(b => {
+        const isMyBounty = b.poster_name === this.character?.name;
+        const expires = new Date(b.expires_at);
+        const hoursLeft = Math.max(0, Math.round((expires - Date.now()) / 3600000));
+        return `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--red);padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:2px">☠ ${b.target_name}</div>
+              <div style="font-size:10px;color:var(--muted2)">GS ${b.target_gs} · LV${b.target_level} · posted by ${b.poster_name}</div>
+              ${b.reason ? `<div style="font-size:11px;color:var(--text2);margin-top:4px;font-style:italic">"${b.reason}"</div>` : ''}
+              <div style="font-size:10px;color:var(--muted);margin-top:4px">${hoursLeft}h remaining</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:var(--font-hud);font-size:22px;font-weight:700;color:var(--accent)">${Number(b.reward).toLocaleString()} ¢</div>
+              ${!isMyBounty ? `<button class="btn-danger" style="font-size:10px;padding:4px 12px;margin-top:6px" onclick="Game.claimBounty('${b.id}')">CLAIM</button>` : '<div style="font-size:10px;color:var(--muted);margin-top:6px">YOUR BOUNTY</div>'}
+            </div>
+          </div>`;
+      }).join('');
+    } catch (e) { this.notify(e.message, 'error'); }
+  },
+
+  async postBounty() {
+    const name   = document.getElementById('bounty-target-name').value.trim();
+    const reward = parseInt(document.getElementById('bounty-reward').value);
+    const reason = document.getElementById('bounty-reason').value.trim();
+    const errEl  = document.getElementById('bounty-error');
+    errEl.textContent = '';
+
+    if (!name) { errEl.textContent = 'Enter a target agent name'; return; }
+    if (!reward || reward < 500) { errEl.textContent = 'Minimum bounty is 500 credits'; return; }
+
+    try {
+      // Look up target by name first
+      const lb = await API.get('/leaderboard/gear_score');
+      const target = lb.entries?.find(e => e.name?.toLowerCase() === name.toLowerCase());
+      if (!target) { errEl.textContent = 'Agent not found — they must appear on the leaderboard'; return; }
+
+      await BountiesAPI.post(target.character_id, reward, reason || null);
+      this.notify(`☠ Bounty posted on ${name} for ${reward.toLocaleString()} ¢`, 'error', 4000);
+      document.getElementById('bounty-target-name').value = '';
+      document.getElementById('bounty-reward').value = '';
+      document.getElementById('bounty-reason').value = '';
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadBountiesView();
+    } catch (e) { errEl.textContent = e.message; }
+  },
+
+  async claimBounty(id) {
+    try {
+      const r = await BountiesAPI.claim(id);
+      this.notify(`🎯 ${r.message}`, 'success', 5000);
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadBountiesView();
+    } catch (e) { this.notify(e.message, 'error'); }
+  },
+
+  // ============================================================
+  // CACHE EVENTS
+  // ============================================================
+  _activeEvent: null,
+  _eventTimer: null,
+
+  showCacheEvent(event) {
+    this._activeEvent = event;
+    const banner = document.getElementById('cache-event-banner');
+    const text   = document.getElementById('cache-event-text');
+    const btn    = document.getElementById('cache-event-btn');
+    if (!banner) return;
+
+    const isClaimed = !!event.claimed_by;
+    text.textContent = isClaimed
+      ? `${event.district} cache secured by ${event.claimed_by_name}`
+      : `${event.rarity.toUpperCase()} cache spotted at ${event.district}`;
+    btn.style.display = isClaimed ? 'none' : 'block';
+    banner.style.display = 'flex';
+
+    if (!isClaimed) {
+      if (this._eventTimer) clearInterval(this._eventTimer);
+      this._eventTimer = setInterval(() => {
+        const secs = Math.max(0, Math.floor((new Date(event.expires_at) - Date.now()) / 1000));
+        const m = Math.floor(secs / 60), s = secs % 60;
+        const timerEl = document.getElementById('cache-event-timer');
+        if (timerEl) timerEl.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+        if (secs <= 0) {
+          clearInterval(this._eventTimer);
+          banner.style.display = 'none';
+        }
+      }, 1000);
+    } else {
+      if (this._eventTimer) clearInterval(this._eventTimer);
+    }
+  },
+
+  async claimCacheEvent() {
+    if (!this._activeEvent) return;
+    try {
+      const r = await EventsAPI.claim(this._activeEvent.id);
+      this.notify(`⚡ ${r.message} · +${r.credits.toLocaleString()} ¢ · +${r.xp.toLocaleString()} XP [${r.rarity.toUpperCase()}]`, 'success', 6000);
+      if (r.rarity === 'exotic') this.flashScreen('#e67e22');
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+    } catch (e) {
+      this.notify(e.message, 'error');
+    }
+  },
+
+  async checkActiveEvent() {
+    try {
+      const data = await EventsAPI.active();
+      if (data.event) this.showCacheEvent(data.event);
+    } catch (e) { /* silent fail */ }
+  },
+
+  // ============================================================
+  // GEAR RECALIBRATION
+  // ============================================================
+  async loadRecalibrationPanel() { /* shown when stash item clicked — see below */ },
+
+  async openRecalibration(inventoryId) {
+    try {
+      const data = await RecalibrationAPI.preview(inventoryId);
+      const modal = document.getElementById('recal-modal');
+      const content = document.getElementById('recal-modal-content');
+      const confirmBtn = document.getElementById('recal-confirm-btn');
+
+      if (!data.canReroll) {
+        content.innerHTML = `
+          <div style="padding:14px;background:var(--bg3);border:1px solid var(--border);border-left:2px solid var(--red);margin-bottom:14px">
+            <div style="color:var(--red);font-size:12px">This item has already been recalibrated once and cannot be rerolled again.</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--accent)">${data.item.name}</div>`;
+        confirmBtn.style.display = 'none';
+        modal.style.display = 'flex';
+        return;
+      }
+
+      const statMeta = {
+        stat_health:      { label:'HEALTH BONUS',  color:'#2ecc71', icon:'♥' },
+        stat_armor:       { label:'ARMOR RATING',  color:'#5dade2', icon:'◈' },
+        stat_weapon_dmg:  { label:'WEAPON DAMAGE', color:'#e74c3c', icon:'⚔' },
+        stat_crit_hit:    { label:'CRIT CHANCE',   color:'#f4a116', icon:'◎' },
+        stat_crit_dmg:    { label:'CRIT DAMAGE',   color:'#e67e22', icon:'💥' },
+        stat_skill_haste: { label:'SKILL HASTE',   color:'#af7ac5', icon:'⚡' },
+      };
+
+      let selectedStat = null;
+      const statsHtml = Object.entries(data.stats).map(([key, val]) => {
+        const m = statMeta[key] || { label: key, color: '#888', icon: '◆' };
+        const pct = Math.min(100, (val / 35) * 100);
+        return `
+          <div class="recal-stat-row" data-stat="${key}" onclick="Game._selectRecalStat('${key}', this)"
+            style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;border:1px solid var(--border);border-left:2px solid var(--border3);margin-bottom:5px;transition:all 0.15s">
+            <span style="color:${m.color};width:14px;text-align:center">${m.icon}</span>
+            <span style="color:var(--text2);flex:1;font-size:11px">${m.label}</span>
+            <div style="width:80px;height:4px;background:var(--border)">
+              <div style="height:100%;width:${pct}%;background:${m.color}"></div>
+            </div>
+            <span style="font-family:var(--font-hud);color:${m.color};font-size:12px;width:36px;text-align:right">+${val}%</span>
+            <span style="font-size:10px;color:var(--muted);letter-spacing:1px;width:50px;text-align:right">REROLL</span>
+          </div>`;
+      }).join('');
+
+      content.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--accent)">${data.item.name}</div>
+            <div style="font-size:10px;color:var(--muted2);letter-spacing:1px;margin-top:2px">GS ${data.item.gearScore} · ${data.item.rarity.toUpperCase()}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--muted2)">REROLL COST</div>
+            <div style="font-family:var(--font-hud);font-size:20px;color:var(--accent)">${Number(data.cost).toLocaleString()} ¢</div>
+          </div>
+        </div>
+        <div style="font-size:9px;letter-spacing:3px;color:var(--muted2);margin-bottom:8px">SELECT STAT TO REROLL</div>
+        ${statsHtml}
+        <div id="recal-selected-stat" style="font-size:11px;color:var(--muted);margin-top:8px">Click a stat above to select it for rerolling.</div>
+      `;
+
+      this._recalInventoryId = inventoryId;
+      this._recalSelectedStat = null;
+      confirmBtn.style.display = 'none';
+      confirmBtn.onclick = () => this.executeRecalibration();
+      modal.style.display = 'flex';
+    } catch (e) { this.notify(e.message, 'error'); }
+  },
+
+  _selectRecalStat(stat, el) {
+    document.querySelectorAll('.recal-stat-row').forEach(r => {
+      r.style.borderLeftColor = 'var(--border3)';
+      r.style.background = 'transparent';
+    });
+    el.style.borderLeftColor = 'var(--accent)';
+    el.style.background = 'var(--accent-dim)';
+    this._recalSelectedStat = stat;
+    const statMeta = {
+      stat_health:'HEALTH BONUS', stat_armor:'ARMOR RATING', stat_weapon_dmg:'WEAPON DAMAGE',
+      stat_crit_hit:'CRIT CHANCE', stat_crit_dmg:'CRIT DAMAGE', stat_skill_haste:'SKILL HASTE',
+    };
+    document.getElementById('recal-selected-stat').innerHTML =
+      `Selected: <strong style="color:var(--accent)">${statMeta[stat] || stat}</strong> — this will be rerolled.`;
+    document.getElementById('recal-confirm-btn').style.display = 'inline-block';
+  },
+
+  async executeRecalibration() {
+    if (!this._recalInventoryId || !this._recalSelectedStat) return;
+    try {
+      const r = await RecalibrationAPI.reroll(this._recalInventoryId, this._recalSelectedStat);
+      hideModal('recal-modal');
+      this.notify(
+        `🔧 Recalibrated: ${r.stat.replace('stat_','').replace(/_/g,' ').toUpperCase()} → +${r.newValue}% (was +${r.oldValue}%) · cost ${r.cost.toLocaleString()} ¢`,
+        r.newValue > r.oldValue ? 'success' : '',
+        5000
+      );
+      if (r.newValue > r.oldValue) this.flashScreen('#5dade2');
+      this.loadInventoryView();
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+    } catch (e) { this.notify(e.message, 'error'); }
+  },
+
+}; // end Game
 
 // ============================================================
 // GLOBAL FUNCTIONS (called from HTML)

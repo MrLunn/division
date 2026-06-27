@@ -197,13 +197,74 @@ CREATE TABLE IF NOT EXISTS activity_feed (
 -- LEADERBOARD SNAPSHOTS (updated hourly via cron)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS leaderboard_cache (
-  type        VARCHAR(32) NOT NULL,  -- gear_score, pvp_kills, missions, clan_gs
+  type        VARCHAR(32) NOT NULL,
   rank        INT NOT NULL,
   character_id UUID REFERENCES characters(id) ON DELETE CASCADE,
   clan_id     UUID REFERENCES clans(id) ON DELETE SET NULL,
   value       BIGINT NOT NULL,
   updated_at  TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (type, rank)
+);
+
+-- Daily contracts (3 per day, reset at midnight)
+CREATE TABLE IF NOT EXISTS daily_contracts (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  day          DATE NOT NULL DEFAULT CURRENT_DATE,
+  slot         INT NOT NULL CHECK (slot IN (1,2,3)),
+  type         VARCHAR(32) NOT NULL,  -- missions, kills, caches, darkzone
+  target       INT NOT NULL,
+  xp_reward    INT NOT NULL DEFAULT 1000,
+  credit_reward INT NOT NULL DEFAULT 500,
+  description  TEXT NOT NULL,
+  UNIQUE(day, slot)
+);
+
+-- Contract progress per character
+CREATE TABLE IF NOT EXISTS contract_progress (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  character_id UUID REFERENCES characters(id) ON DELETE CASCADE,
+  contract_id  UUID REFERENCES daily_contracts(id) ON DELETE CASCADE,
+  progress     INT NOT NULL DEFAULT 0,
+  completed    BOOLEAN NOT NULL DEFAULT false,
+  claimed      BOOLEAN NOT NULL DEFAULT false,
+  UNIQUE(character_id, contract_id)
+);
+
+-- Bounty board
+CREATE TABLE IF NOT EXISTS bounties (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  poster_id    UUID REFERENCES characters(id) ON DELETE CASCADE,
+  target_id    UUID REFERENCES characters(id) ON DELETE CASCADE,
+  reward       INT NOT NULL,
+  reason       TEXT,
+  claimed_by   UUID REFERENCES characters(id) ON DELETE SET NULL,
+  claimed_at   TIMESTAMPTZ,
+  expires_at   TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours',
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Loot cache events (server-wide)
+CREATE TABLE IF NOT EXISTS cache_events (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  spawned_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at   TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '30 minutes',
+  map_x        FLOAT NOT NULL,
+  map_y        FLOAT NOT NULL,
+  district     VARCHAR(64),
+  rarity       VARCHAR(16) NOT NULL DEFAULT 'named',
+  claimed_by   UUID REFERENCES characters(id) ON DELETE SET NULL,
+  claimed_at   TIMESTAMPTZ
+);
+
+-- Recalibration log (one reroll per item)
+CREATE TABLE IF NOT EXISTS recalibrations (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inventory_id UUID REFERENCES inventory(id) ON DELETE CASCADE UNIQUE,
+  stat_changed VARCHAR(32) NOT NULL,
+  old_value    INT NOT NULL,
+  new_value    INT NOT NULL,
+  cost         INT NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================================
@@ -216,6 +277,10 @@ CREATE INDEX IF NOT EXISTS idx_pvp_events_attacker ON pvp_events(attacker_id);
 CREATE INDEX IF NOT EXISTS idx_pvp_events_defender ON pvp_events(defender_id);
 CREATE INDEX IF NOT EXISTS idx_activity_feed_time ON activity_feed(occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_clan_members_clan ON clan_members(clan_id);
+CREATE INDEX IF NOT EXISTS idx_bounties_target ON bounties(target_id);
+CREATE INDEX IF NOT EXISTS idx_bounties_active ON bounties(expires_at) WHERE claimed_by IS NULL;
+CREATE INDEX IF NOT EXISTS idx_contract_progress_char ON contract_progress(character_id);
+CREATE INDEX IF NOT EXISTS idx_cache_events_active ON cache_events(expires_at) WHERE claimed_by IS NULL;
 `;
 
 const seedMissions = `
