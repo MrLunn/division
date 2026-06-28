@@ -47,6 +47,11 @@ const Game = {
     this.loadView('map');
     setTimeout(() => this.checkActiveEvent(), 2000);
     setTimeout(() => this.dailyIntelDrop(), 3000);
+    // Show admin link if user is admin
+    if (this.user?.is_admin) {
+      const adminLink = document.getElementById('admin-link');
+      if (adminLink) adminLink.style.display = 'inline-block';
+    }
   },
 
   dailyIntelDrop() {

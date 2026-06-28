@@ -98,7 +98,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', require('../middleware/auth').requireAuth, async (req, res) => {
   try {
     const userResult = await db.query(
-      `SELECT id, username, email, created_at, last_login FROM users WHERE id = $1`, [req.userId]
+      `SELECT id, username, email, is_admin, created_at, last_login FROM users WHERE id = $1`, [req.userId]
     );
     const clanResult = await db.query(`
       SELECT cl.id, cl.name, cl.tag, cm.role
