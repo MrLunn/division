@@ -908,3 +908,212 @@ html, body {
   text-transform: uppercase;
 }
 @keyframes rogueFlash { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ============================================================
+   SOCOM TACTICAL AESTHETIC
+   Green phosphor displays, angular brackets, mission briefing style
+   ============================================================ */
+
+:root {
+  --socom-green:     #39ff14;
+  --socom-green-dim: rgba(57,255,20,0.08);
+  --socom-green-mid: rgba(57,255,20,0.25);
+  --socom-amber:     #ffb000;
+  --socom-red:       #ff2200;
+}
+
+/* Scan-line overlay on any element */
+.scanlines::after {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  z-index: 1;
+}
+
+/* Angular bracket panel titles — SOCOM style */
+.panel-title-socom {
+  font-size: 9px; letter-spacing: 4px; color: var(--socom-green);
+  text-transform: uppercase; padding-bottom: 8px;
+  border-bottom: 1px solid rgba(57,255,20,0.2);
+  margin-bottom: 10px; font-family: var(--font-hud);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-title-socom::before { content: '[ '; color: var(--socom-green); opacity: 0.5; }
+.panel-title-socom::after  { content: ' ]'; color: var(--socom-green); opacity: 0.5; margin-left: auto; }
+
+/* SOCOM data readout — monospace green text */
+.socom-data {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  color: var(--socom-green);
+  line-height: 1.8;
+}
+.socom-data .label { color: var(--socom-green); opacity: 0.5; }
+.socom-data .value { color: var(--socom-green); }
+
+/* Tactical status bar — SOCOM green pips */
+.socom-status-bar {
+  display: flex; gap: 4px; align-items: center;
+  font-family: var(--font-hud); font-size: 9px;
+  color: var(--socom-green); letter-spacing: 2px;
+}
+.socom-pip {
+  width: 6px; height: 12px;
+  background: var(--socom-green);
+  opacity: 0.3;
+  transition: opacity 0.3s;
+}
+.socom-pip.active { opacity: 1; }
+
+/* Mission briefing card */
+.mission-brief {
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(57,255,20,0.2);
+  border-left: 2px solid var(--socom-green);
+  padding: 12px 14px;
+  font-family: var(--font-hud);
+  position: relative;
+}
+.mission-brief::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--socom-green-dim);
+  pointer-events: none;
+}
+.brief-header {
+  font-size: 10px; color: var(--socom-green);
+  letter-spacing: 4px; margin-bottom: 8px;
+  opacity: 0.7;
+}
+.brief-designator {
+  font-size: 11px; color: var(--socom-green);
+  margin-bottom: 3px;
+}
+.brief-designator .key { opacity: 0.5; margin-right: 6px; }
+.brief-designator .val { color: #fff; }
+
+/* Nav tabs — SOCOM angled bottom-line style */
+.navbtn {
+  position: relative;
+  transition: color 0.1s, border-color 0.1s;
+}
+.navbtn.active::after {
+  content: '';
+  position: absolute; bottom: -1px; left: 10%; right: 10%;
+  height: 2px;
+  background: var(--socom-green);
+  box-shadow: 0 0 6px var(--socom-green);
+}
+
+/* Topbar — add subtle green glow line */
+#topbar::after {
+  background: linear-gradient(90deg, transparent, var(--socom-green), transparent);
+  opacity: 0.2;
+}
+
+/* Activity feed — phosphor green for combat events */
+.feed-item.pvp     { color: var(--socom-red); font-family: var(--font-hud); }
+.feed-item.exotic  { color: var(--socom-amber); font-family: var(--font-hud); }
+.feed-item.complete{ color: var(--socom-green); font-family: var(--font-hud); opacity: 0.85; }
+.feed-item.base    { color: #c39bd3; font-family: var(--font-hud); }
+
+/* Combat log — full SOCOM phosphor style */
+.combat-log {
+  background: #000;
+  border: 1px solid rgba(57,255,20,0.2);
+  border-left: 2px solid var(--socom-green);
+  color: var(--socom-green);
+  font-family: var(--font-hud);
+  font-size: 11px;
+  line-height: 2;
+  position: relative;
+}
+.combat-log .log-success { color: var(--socom-green); }
+.combat-log .log-fail    { color: var(--socom-red); }
+.combat-log .log-hit     { color: rgba(57,255,20,0.6); }
+
+/* Notif banner — SOCOM angular */
+.notif-banner {
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  letter-spacing: 4px;
+  border-bottom: 1px solid rgba(57,255,20,0.3);
+}
+.notif-banner.success {
+  background: #000;
+  color: var(--socom-green);
+  border: 1px solid var(--socom-green);
+  box-shadow: 0 0 12px rgba(57,255,20,0.3);
+}
+.notif-banner.error {
+  background: #000;
+  color: var(--socom-red);
+  border: 1px solid var(--socom-red);
+  box-shadow: 0 0 12px rgba(255,34,0,0.3);
+}
+
+/* HUD bar health — SOCOM segmented pip style */
+.hud-bar-fill.health  { background: var(--socom-green); box-shadow: 0 0 6px rgba(57,255,20,0.6); }
+
+/* Map tooltip — dark + green border */
+.map-tooltip {
+  background: rgba(0,4,0,0.97);
+  border: 1px solid var(--socom-green);
+  border-top: 2px solid var(--socom-green);
+}
+.map-tooltip h4 { text-shadow: 0 0 8px currentColor; }
+.map-tooltip .tt-launch {
+  background: var(--socom-green);
+  color: #000;
+  font-weight: 700;
+}
+
+/* Button primary — SOCOM amber/green option */
+.btn-socom {
+  background: transparent;
+  border: 1px solid var(--socom-green);
+  color: var(--socom-green);
+  padding: 9px 18px;
+  font-family: var(--font-hud); font-size: 11px;
+  letter-spacing: 3px; cursor: pointer;
+  transition: all 0.15s; text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+.btn-socom:hover {
+  background: var(--socom-green-mid);
+  box-shadow: 0 0 8px rgba(57,255,20,0.3);
+}
+
+/* Rarity tags — sharper SOCOM style */
+.rt-exotic {
+  background: transparent;
+  color: var(--socom-amber);
+  border: 1px solid var(--socom-amber);
+  box-shadow: 0 0 6px rgba(255,176,0,0.3);
+}
+
+/* Gear slot occupied border glow */
+.gear-slot:not(.empty):hover {
+  box-shadow: 0 0 8px rgba(57,255,20,0.15);
+}
+
+/* SOCOM-style countdown timer */
+.socom-timer {
+  font-family: var(--font-hud);
+  font-size: 28px;
+  color: var(--socom-green);
+  letter-spacing: 4px;
+  text-shadow: 0 0 10px rgba(57,255,20,0.5);
+}
+
+/* Active nav glow */
+.navbtn.active {
+  color: var(--socom-green) !important;
+  border-bottom-color: var(--socom-green) !important;
+  text-shadow: 0 0 6px rgba(57,255,20,0.4);
+}

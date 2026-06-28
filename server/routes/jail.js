@@ -9,7 +9,7 @@ const { requireAuth } = require('../middleware/auth');
 const JAIL_DURATION_MINS = 30;
 const DEFAULT_BOUNTY     = 500;
 
-// GET /api/jail — current jail roster
+// GET /api/jail — current jail roster (real + bot prisoners)
 router.get('/', requireAuth, async (req, res) => {
   try {
     const result = await db.query(`
@@ -25,29 +25,56 @@ router.get('/', requireAuth, async (req, res) => {
       ORDER BY je.jailbreak_bounty DESC
     `);
 
-    // Also auto-release anyone whose timer has expired
-    await db.query(`
-      UPDATE characters SET is_jailed=false, jail_until=NULL
-      WHERE is_jailed=true AND jail_until <= NOW()
-    `);
-    await db.query(`
-      UPDATE jail_events SET released_at=NOW(), auto_release=true
-      WHERE released_at IS NULL
-        AND prisoner_id IN (
-          SELECT id FROM characters WHERE is_jailed=false
-        )
-    `);
+    // Auto-release expired
+    await db.query(`UPDATE characters SET is_jailed=false, jail_until=NULL WHERE is_jailed=true AND jail_until <= NOW()`);
+    await db.query(`UPDATE jail_events SET released_at=NOW(), auto_release=true WHERE released_at IS NULL AND prisoner_id IN (SELECT id FROM characters WHERE is_jailed=false)`);
 
-    res.json({ prisoners: result.rows });
+    // Inject bot prisoners so there's always activity
+    const BOT_PRISONERS = [
+      { id:'bot-1', prisoner_name:'Ghost_Larsen',  prisoner_id:'bot-ghost',  level:22, gear_score:280, jailbreak_bounty:1200, is_bot:true, created_at: new Date(Date.now() - 8*60000).toISOString() },
+      { id:'bot-2', prisoner_name:'NordAgent',      prisoner_id:'bot-nord',   level:18, gear_score:320, jailbreak_bounty:800,  is_bot:true, created_at: new Date(Date.now() - 3*60000).toISOString() },
+      { id:'bot-3', prisoner_name:'Reaper_Knudsen', prisoner_id:'bot-reaper', level:14, gear_score:210, jailbreak_bounty:500,  is_bot:true, created_at: new Date(Date.now() - 14*60000).toISOString() },
+    ];
+
+    // Only show bots not already bailed by this player (track in session — simple approach)
+    const prisoners = [...result.rows, ...BOT_PRISONERS];
+
+    res.json({ prisoners });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load jail' });
   }
 });
 
-// POST /api/jail/:eventId/break — break a prisoner out
+// POST /api/jail/:eventId/break — break a prisoner out (real or bot)
 router.post('/:eventId/break', requireAuth, async (req, res) => {
   const { eventId } = req.params;
+
+  // Handle bot prisoners
+  if (eventId.startsWith('bot-')) {
+    const BOT_REWARDS = { 'bot-1': 1200, 'bot-2': 800, 'bot-3': 500 };
+    const BOT_NAMES_MAP = { 'bot-1':'Ghost_Larsen', 'bot-2':'NordAgent', 'bot-3':'Reaper_Knudsen' };
+    const reward = BOT_REWARDS[eventId];
+    const name   = BOT_NAMES_MAP[eventId];
+    if (!reward) return res.status(404).json({ error:'Bot prisoner not found' });
+
+    await db.query('UPDATE characters SET credits=credits+$1, respect=respect+100 WHERE id=$2',
+      [reward, req.character.id]);
+
+    global.broadcastActivity(req.io, {
+      type: 'jailbreak',
+      text: `🔓 ${req.character.name} broke ${name} out of custody — collected ${reward.toLocaleString()}¢`,
+    });
+
+    const { tickContract } = require('./contracts');
+    await tickContract(req.character.id, 'jailbreak', 1);
+
+    return res.json({
+      message: `${name} is free! +${reward.toLocaleString()} ¢ · +100 Respect`,
+      reward,
+    });
+  }
+
   try {
     // Fetch the event
     const ev = await db.query(`

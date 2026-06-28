@@ -89,8 +89,8 @@
       </div>
       <div class="topbar-right">
         <div class="agent-info">
-          <div id="hud-name" class="agent-name"></div>
-          <div class="agent-meta"><span id="hud-level"></span> &nbsp;·&nbsp; GS <span id="hud-gs" style="color:var(--accent);font-family:var(--font-hud)"></span></div>
+          <div id="hud-name" class="agent-name" style="font-family:var(--font-hud);letter-spacing:2px"></div>
+          <div class="agent-meta"><span id="hud-level"></span> &nbsp;·&nbsp; GS <span id="hud-gs" style="color:var(--socom-green);font-family:var(--font-hud);text-shadow:0 0 4px rgba(57,255,20,0.5)"></span></div>
         </div>
         <button class="btn-logout" onclick="logout()">EXTRACT</button>
       </div>
@@ -143,7 +143,7 @@
         <div class="map-layout">
           <div class="map-side-left">
             <div class="panel">
-              <div class="panel-title">ACTIVE MISSIONS</div>
+              <div class="panel-title-socom">ACTIVE MISSIONS</div>
               <div id="mission-list"></div>
             </div>
           </div>
@@ -160,11 +160,11 @@
           </div>
           <div class="map-side-right">
             <div class="panel">
-              <div class="panel-title">ACTIVITY FEED</div>
+              <div class="panel-title-socom">SITREP // ACTIVITY FEED</div>
               <div id="activity-feed"></div>
             </div>
             <div class="panel" style="margin-top:8px">
-              <div class="panel-title">GLOBAL CHAT</div>
+              <div class="panel-title-socom">COMMS // GLOBAL</div>
               <div id="chat-messages"></div>
               <div class="chat-input-row">
                 <input type="text" id="chat-input" placeholder="Type message..." maxlength="200"
@@ -227,17 +227,17 @@
         <div class="dz-layout">
           <div class="dz-left">
             <div class="panel">
-              <div class="panel-title dz-title">⚠ DARK ZONE — ACTIVE CONFLICT</div>
+              <div class="panel-title-socom" style="color:var(--socom-red)">⚠ DARK ZONE // ACTIVE CONFLICT</div>
               <div id="dz-zones"></div>
             </div>
             <div class="panel" style="margin-top:10px">
-              <div class="panel-title">CAPTURED BASES</div>
+              <div class="panel-title-socom">CAPTURED BASES</div>
               <div id="dz-bases"></div>
             </div>
           </div>
           <div class="dz-right">
             <div class="panel">
-              <div class="panel-title">PVP COMBAT</div>
+              <div class="panel-title-socom">ENGAGEMENT // PVP</div>
               <div id="pvp-stats-display"></div>
               <div class="pvp-actions">
                 <button class="btn-danger" onclick="enterDZ()">ENTER DARK ZONE</button>
@@ -247,7 +247,7 @@
               <div id="pvp-combat-log" class="combat-log" style="display:none"></div>
             </div>
             <div class="panel" style="margin-top:10px">
-              <div class="panel-title">PVP KILL FEED</div>
+              <div class="panel-title-socom">KILL FEED</div>
               <div id="pvp-feed"></div>
             </div>
           </div>
@@ -534,14 +534,14 @@
     </div><!-- /views -->
 
     <!-- CACHE EVENT BANNER -->
-    <div id="cache-event-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(7,10,13,0.97);border-top:2px solid var(--accent);padding:10px 24px;display:none;align-items:center;justify-content:space-between">
+    <div id="cache-event-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(0,4,0,0.97);border-top:2px solid var(--socom-green);padding:10px 24px;align-items:center;justify-content:space-between;box-shadow:0 0 20px rgba(57,255,20,0.2)">
       <div>
-        <div style="font-size:9px;letter-spacing:3px;color:var(--accent);margin-bottom:2px">⚡ CACHE EVENT ACTIVE</div>
-        <div id="cache-event-text" style="font-size:14px;font-weight:700;color:#fff"></div>
+        <div style="font-size:9px;letter-spacing:4px;color:var(--socom-green);margin-bottom:2px;font-family:var(--font-hud)">⚡ CACHE EVENT // EXTRACTION WINDOW OPEN</div>
+        <div id="cache-event-text" style="font-size:14px;font-weight:700;color:#fff;font-family:var(--font-hud)"></div>
       </div>
       <div style="display:flex;align-items:center;gap:16px">
-        <div id="cache-event-timer" style="font-family:var(--font-hud);font-size:22px;color:var(--accent)"></div>
-        <button id="cache-event-btn" class="btn-primary" style="padding:10px 24px" onclick="Game.claimCacheEvent()">EXTRACT CACHE</button>
+        <div id="cache-event-timer" class="socom-timer"></div>
+        <button id="cache-event-btn" class="btn-socom" style="padding:10px 24px;font-size:12px" onclick="Game.claimCacheEvent()">[ EXTRACT CACHE ]</button>
       </div>
     </div>
 

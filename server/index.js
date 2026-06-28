@@ -162,9 +162,9 @@ const { generateBotActivity, botAggressiveAction } = require('./engine/bots');
 setInterval(() => generateBotActivity(io), 4 * 60 * 1000);   // world events every 4 min
 setTimeout(() => generateBotActivity(io), 30 * 1000);         // first one after 30s
 
-// BOT AGGRESSION — bots actively attack real players
-setInterval(() => botAggressiveAction(io, connectedAgents), 90 * 1000);  // every 90s
-setTimeout(() => botAggressiveAction(io, connectedAgents), 20 * 1000);   // first attack after 20s
+// BOT AGGRESSION — bots actively attack real players (5 min cooldown per player)
+setInterval(() => botAggressiveAction(io, connectedAgents), 3 * 60 * 1000);   // check every 3 min
+setTimeout(() => botAggressiveAction(io, connectedAgents), 60 * 1000);          // first after 60s
 
 // ============================================================
 // START

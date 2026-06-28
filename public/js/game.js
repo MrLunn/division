@@ -381,13 +381,20 @@ const Game = {
   renderMissionList(missions) {
     const el = document.getElementById('mission-list');
     if (!el) return;
-    el.innerHTML = missions.slice(0, 8).map(m => `
-      <div class="mission-list-item" onclick="window.Game.runMission('${m.id}', '${m.name}')">
-        <div class="mli-name">${m.name}</div>
-        <div class="mli-type">${m.type.toUpperCase()} · ${m.difficulty.toUpperCase()} · GS ${m.min_gs || '0'}+</div>
-        <div class="mli-prog"><div class="mli-prog-fill" style="width:${Math.min(100, m.completions * 10)}%"></div></div>
-      </div>
-    `).join('');
+    const diffColor = { normal:'var(--socom-green)', challenging:'var(--socom-amber)', hard:'#ff8c00', heroic:'var(--socom-red)' };
+    el.innerHTML = missions.slice(0, 8).map(m => {
+      const dc = diffColor[m.difficulty] || 'var(--socom-green)';
+      return `
+        <div class="mission-brief" style="margin-bottom:6px;cursor:pointer" onclick="window.Game.runMission('${m.id}','${m.name}')">
+          <div class="brief-header">${m.type?.replace('_',' ').toUpperCase()} // GS ${m.min_gs || '0'}+</div>
+          <div class="brief-designator">
+            <span class="key">OBJECTIVE:</span><span class="val">${m.name}</span>
+          </div>
+          <div class="brief-designator">
+            <span class="key">CLEARANCE:</span><span class="val" style="color:${dc}">${m.difficulty?.toUpperCase()}</span>
+          </div>
+        </div>`;
+    }).join('');
   },
 
   renderFeed(feedItems) {
@@ -416,10 +423,18 @@ const Game = {
     const text = event.text || (event.actor_name ? `${event.actor_name}: ${event.detail}` : '');
     if (!text) return;
     const cls  = this._feedClass(event.type);
+    // SOCOM-style prefix codes
+    const prefixes = {
+      pvp:           'KIA //', bounty: 'INTEL //', jailbreak: 'EXTRACT //',
+      arrest:        'DETAIN //', cache_spawn: 'CACHE //', cache_claimed: 'SECURED //',
+      mission:       'OPS //', loot: 'INTEL //', fightclub: 'ARENA //',
+      complete:      'OPS //', extortion: 'INTEL //', clan_raid_win: 'RAID //',
+    };
+    const prefix = prefixes[event.type] || '// ';
     const item = document.createElement('div');
     item.className = `feed-item ${cls}`;
     item.style.animation = 'feedIn 0.4s ease';
-    item.textContent = text;
+    item.innerHTML = `<span style="opacity:0.45;margin-right:6px">${prefix}</span>${text}`;
     el.prepend(item);
     if (el.children.length > 30) el.lastChild.remove();
   },

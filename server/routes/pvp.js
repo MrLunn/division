@@ -1,8 +1,22 @@
 const router = require('express').Router();
-const db = require('../db/pool');
+const db     = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const combatEngine = require('../engine/combat');
 const { simulatePvpVsBot } = require('../engine/bots');
+
+// In-memory PvP cooldown: attackerId → { targetId → lastAttackTime }
+const pvpCooldownMap = new Map();
+const PVP_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+function checkPvpCooldown(attackerId, targetId) {
+  const key = `${attackerId}:${targetId}`;
+  const last = pvpCooldownMap.get(key) || 0;
+  return Date.now() - last;
+}
+
+function setPvpCooldown(attackerId, targetId) {
+  pvpCooldownMap.set(`${attackerId}:${targetId}`, Date.now());
+}
 
 const DZ_ZONES = ['DZ-SOUTH — Bjørvika & Gamlebyen', 'DZ-CENTRAL — Grønland & Tøyen', 'DZ-NORTH — Grünerløkka & Storo'];
 
@@ -211,6 +225,14 @@ router.post('/attack-player/:targetId', requireAuth, async (req, res) => {
   const { targetId } = req.params;
   if (targetId === req.character.id) return res.status(400).json({ error:'Cannot attack yourself' });
 
+  // 5-minute cooldown per target
+  const elapsed = checkPvpCooldown(req.character.id, targetId);
+  if (elapsed < PVP_COOLDOWN_MS) {
+    const secsLeft = Math.ceil((PVP_COOLDOWN_MS - elapsed) / 1000);
+    const minsLeft = Math.ceil(secsLeft / 60);
+    return res.status(429).json({ error: `PvP cooldown — ${minsLeft}m until you can attack this agent again` });
+  }
+
   const targetResult = await db.query('SELECT * FROM characters WHERE id=$1',[targetId]);
   if (!targetResult.rows[0]) return res.status(404).json({ error:'Agent not found' });
   const target = targetResult.rows[0];
@@ -246,6 +268,7 @@ router.post('/attack-player/:targetId', requireAuth, async (req, res) => {
     });
     global.notifyAgent(req.io, targetId, 'pvp:attacked', { by: req.character.name, iWon: !iWin });
 
+    setPvpCooldown(req.character.id, targetId);
     res.json({ playerWins: iWin, targetName: target.name, targetGs: oppGs, xp, credits, respect });
   } catch(err) { console.error(err); res.status(500).json({ error:'PvP failed' }); }
 });

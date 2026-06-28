@@ -120,18 +120,28 @@ async function generateBotActivity(io) {
   } catch(err) { console.error('Bot activity error:', err.message); }
 }
 
-// ============================================================
-// BOT AGGRESSION — bots attack real players
-// Called every ~2 minutes, picks a random online player
-// ============================================================
+// PvP cooldown — 5 minutes between attacks per player
+const pvpCooldowns = new Map(); // characterId → timestamp
+
+// BOT AGGRESSION — bots attack real players every 5 min max per player
 async function botAggressiveAction(io, connectedAgents) {
   try {
     if (connectedAgents.size === 0) return;
 
-    // Pick a random connected real player
+    // Pick a random connected real player who isn't on cooldown
     const agentList = [...connectedAgents.values()];
-    const target = agentList[Math.floor(Math.random() * agentList.length)];
+    const now = Date.now();
+    const eligible = agentList.filter(a => {
+      const last = pvpCooldowns.get(a.characterId) || 0;
+      return now - last > 5 * 60 * 1000; // 5 min cooldown
+    });
+    if (eligible.length === 0) return;
+
+    const target = eligible[Math.floor(Math.random() * eligible.length)];
     if (!target?.characterId) return;
+
+    // Set cooldown for this player
+    pvpCooldowns.set(target.characterId, now);
 
     // Fetch their character
     const charResult = await db.query('SELECT * FROM characters WHERE id=$1', [target.characterId]);
