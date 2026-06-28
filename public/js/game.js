@@ -806,10 +806,12 @@ const Game = {
     if (!item) return;
 
     this.currentItemId = id;
+    this._currentItemId = id; // used by recalibrate button
     const modal    = document.getElementById('item-modal');
     const content  = document.getElementById('item-modal-content');
     const equipBtn = document.getElementById('item-equip-btn');
     const sellBtn  = document.getElementById('item-sell-btn');
+    const recalBtn = document.getElementById('item-recal-btn');
 
     const info = this.SLOT_ICONS[item.slot] || { icon: '◆', label: (item.slot||'').toUpperCase() };
     const isEquipped = item.is_equipped;
@@ -846,6 +848,7 @@ const Game = {
     equipBtn.textContent = isEquipped ? 'UNEQUIP' : `EQUIP (${(item.slot||'').toUpperCase()})`;
     equipBtn.onclick = isEquipped ? () => this.unequipItem(id) : () => this.equipCurrentItem();
     sellBtn.style.display = isEquipped ? 'none' : 'inline-block';
+    if (recalBtn) recalBtn.style.display = !isEquipped && ['rare','epic','named','exotic'].includes(item.rarity) ? 'inline-block' : 'none';
     modal.style.display = 'flex';
   },
 
@@ -1434,6 +1437,7 @@ const Game = {
       const lb = await API.get('/leaderboard/gear_score');
       const target = lb.entries?.find(e => e.name?.toLowerCase() === name.toLowerCase());
       if (!target) { errEl.textContent = 'Agent not found — they must appear on the leaderboard'; return; }
+      if (target.is_bot || !target.character_id) { errEl.textContent = 'Cannot place bounty on a bot agent'; return; }
 
       await BountiesAPI.post(target.character_id, reward, reason || null);
       this.notify(`☠ Bounty posted on ${name} for ${reward.toLocaleString()} ¢`, 'error', 4000);
@@ -1838,6 +1842,7 @@ const Game = {
       const lb = await API.get('/leaderboard/gear_score');
       const target = lb.entries?.find(e => e.name?.toLowerCase() === targetName.toLowerCase());
       if (!target) { errEl.textContent = 'Agent not found on leaderboard'; return; }
+      if (target.is_bot || !target.character_id) { errEl.textContent = 'Use the bot targets panel above to extort bots'; return; }
       await ExtortionAPI.send(target.character_id, amount);
       this.notify(`💰 Demand sent to ${targetName}`, '', 3000);
       document.getElementById('ext-target').value = '';
