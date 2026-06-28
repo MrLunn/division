@@ -20,10 +20,11 @@ router.get('/', requireAuth, async (req, res) => {
 
     // Inject bot targets that can be extorted (weaker than player)
     const gs = req.character.gear_score || 100;
+    const credits = req.character.credits || 1000;
     const BOT_TARGETS = [
-      { id:'bot-ext-1', name:'TacticalHans',  gear_score:175, level:9,  isBot:true, suggestedAmount: Math.floor(gs * 0.08) },
-      { id:'bot-ext-2', name:'Arctic_Fox',    gear_score:220, level:12, isBot:true, suggestedAmount: Math.floor(gs * 0.10) },
-      { id:'bot-ext-3', name:'ShadowKong',    gear_score:260, level:15, isBot:true, suggestedAmount: Math.floor(gs * 0.12) },
+      { id:'bot-ext-1', name:'TacticalHans',  gear_score:175, level:9,  isBot:true, suggestedAmount: Math.max(200, Math.floor(credits * 0.05)) },
+      { id:'bot-ext-2', name:'Arctic_Fox',    gear_score:220, level:12, isBot:true, suggestedAmount: Math.max(300, Math.floor(credits * 0.08)) },
+      { id:'bot-ext-3', name:'ShadowKong',    gear_score:260, level:15, isBot:true, suggestedAmount: Math.max(500, Math.floor(credits * 0.12)) },
     ].filter(b => b.gear_score < gs * 1.5);
 
     res.json({ sent: sent.rows, received: received.rows, botTargets: BOT_TARGETS });
