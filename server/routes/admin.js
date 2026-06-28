@@ -4,7 +4,7 @@
  */
 const router = require('express').Router();
 const db     = require('../db/pool');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { JWT_SECRET, signToken } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
 
