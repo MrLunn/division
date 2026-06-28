@@ -104,8 +104,28 @@ const Game = {
     this.socket.on('jail:released', ({ by }) => {
       if (this.character) { this.character.is_jailed = false; this.character.jail_until = null; }
       this.updateHUD();
-      this.notify(`🔓 You've been broken out by ${by}! Back in action.`, 'success', 5000);
+      this.notify(`🔓 Broken out by ${by}! Back in action.`, 'success', 5000);
       this.flashScreen('#2ecc71');
+    });
+
+    // Extortion demands
+    this.socket.on('extortion:demand', ({ from, amount, hoursLeft }) => {
+      this.notify(`💰 ${from} demands ${amount.toLocaleString()}¢ — pay within ${hoursLeft}h or face consequences`, 'error', 8000);
+      this.flashScreen('#e8890c');
+    });
+    this.socket.on('extortion:paid', ({ from, amount }) => {
+      this.notify(`💰 ${from} paid your ${amount.toLocaleString()}¢ demand · +30★`, 'success', 4000);
+    });
+    this.socket.on('extortion:refused', ({ by }) => {
+      this.notify(`⚠ ${by} refused your demand — retaliate!`, 'error', 5000);
+    });
+    this.socket.on('pvp:attacked', ({ by, iWon }) => {
+      if (iWon) {
+        this.notify(`🛡 ${by} attacked you but failed!`, 'success', 4000);
+      } else {
+        this.notify(`☠ ${by} eliminated you in a leaderboard attack!`, 'error', 5000);
+        this.flashScreen('#e74c3c');
+      }
     });
 
     // Cache event spawned
@@ -242,6 +262,9 @@ const Game = {
       contracts:   () => this.loadContractsView(),
       bounties:    () => this.loadBountiesView(),
       jail:        () => this.loadJailView(),
+      extortion:   () => this.loadExtortionView(),
+      druglab:     () => this.loadDrugLabView(),
+      fightclub:   () => this.loadFightClubView(),
       darkzone:    () => this.loadDarkZoneView(),
       clans:       () => this.loadClansView(),
       leaderboard: () => this.loadLeaderboardView(),
@@ -1034,19 +1057,30 @@ const Game = {
       el.innerHTML = data.entries.map(entry => {
         const isYou = entry.name === this.character?.name;
         const entryRank = this.getRank(entry.level || 1);
+        const isBot = entry.is_bot;
         return `<div class="lb-row ${isYou ? 'you' : ''}">
           ${rankLabel(entry.rank)}
           <div class="lb-name">
             <div>${entry.name || entry.clan_name}
               ${isYou ? '<span class="you-tag">[YOU]</span>' : ''}
+              ${isBot ? '<span style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-left:4px">[BOT]</span>' : ''}
             </div>
             <div style="font-size:10px;display:flex;gap:8px;margin-top:2px">
-              <span style="color:${entryRank.color}">${entryRank.title}</span>
+              ${entry.name ? `<span style="color:${entryRank.color}">${entryRank.title}</span>` : ''}
               ${entry.clan_tag ? `<span class="lb-clan">[${entry.clan_tag}]</span>` : ''}
               ${entry.respect ? `<span style="color:#af7ac5">★ ${Number(entry.respect).toLocaleString()}</span>` : ''}
+              ${entry.member_count ? `<span style="color:var(--muted2)">${entry.member_count} members</span>` : ''}
             </div>
           </div>
-          <div class="lb-value">${formatVal(type, entry.value)}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="lb-value">${formatVal(type, entry.value)}</div>
+            ${!isYou && type !== 'clans' && entry.character_id
+              ? `<button onclick="Game.leaderboardAttack('${entry.character_id}','${entry.name}',${entry.gear_score || 0})" style="font-size:9px;letter-spacing:1px;padding:3px 8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.4);color:var(--red);cursor:pointer;font-family:var(--font-ui);font-weight:700">ATTACK</button>`
+              : ''}
+            ${type === 'clans' && entry.clan_id
+              ? `<button onclick="Game.attackClan('${entry.clan_id}','${entry.clan_name}')" style="font-size:9px;letter-spacing:1px;padding:3px 8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.4);color:var(--red);cursor:pointer;font-family:var(--font-ui);font-weight:700">RAID</button>`
+              : ''}
+          </div>
         </div>`;
       }).join('');
     } catch (e) {
@@ -1480,6 +1514,287 @@ const Game = {
       this.updateHUD();
       this.loadJailView();
     } catch (e) { this.notify(e.message, 'error'); }
+  },
+
+  // ============================================================
+  // LEADERBOARD PVP — attack player or clan directly
+  // ============================================================
+  async leaderboardAttack(characterId, name, gs) {
+    if (!confirm(`Attack ${name} (GS${gs})?\n\nThis will cost you respect if you lose.`)) return;
+    try {
+      const r = await API.post(`/pvp/attack-player/${characterId}`);
+      const color = r.playerWins ? '#2ecc71' : '#e74c3c';
+      this.flashScreen(color);
+      this.notify(
+        r.playerWins
+          ? `☠ ${r.targetName} eliminated · +${r.credits.toLocaleString()}¢ · +${r.xp} XP · +${r.respect}★`
+          : `⚠ Defeated by ${r.targetName} · +${r.xp} XP`,
+        r.playerWins ? 'success' : 'error', 4000
+      );
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.fetchLeaderboard(document.querySelector('.lb-tab.active')?.dataset?.type || 'gear_score');
+    } catch(e) { this.notify(e.message, 'error'); }
+  },
+
+  async attackClan(clanId, clanName) {
+    if (!confirm(`Raid ${clanName}?\n\nWin to loot credits from their treasury.`)) return;
+    try {
+      const r = await API.post(`/pvp/attack-clan/${clanId}`);
+      this.flashScreen(r.playerWins ? '#e8890c' : '#e74c3c');
+      const logEl = document.getElementById('pvp-combat-log');
+      if (logEl) {
+        logEl.style.display = 'block';
+        logEl.innerHTML = r.log.map((l, i) =>
+          `<div class="${i===r.log.length-1 ? (r.playerWins?'log-success':'log-fail') : 'log-hit'}">${l}</div>`
+        ).join('');
+      }
+      this.notify(
+        r.playerWins
+          ? `⚔ Raid success — looted ${r.creditsLooted.toLocaleString()}¢ from ${r.clanName} · +${r.respect}★`
+          : `⚔ Raid failed — ${r.clanName} held their ground · +${r.respect}★`,
+        r.playerWins ? 'success' : 'error', 5000
+      );
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+    } catch(e) { this.notify(e.message, 'error'); }
+  },
+
+  // ============================================================
+  // EXTORTION
+  // ============================================================
+  async loadExtortionView() {
+    try {
+      const data = await ExtortionAPI.get();
+      const sentEl = document.getElementById('extortion-sent');
+      const recEl  = document.getElementById('extortion-received');
+
+      sentEl.innerHTML = data.sent.length === 0
+        ? '<div style="color:var(--muted);font-size:11px;padding:8px 0">No active demands sent.</div>'
+        : data.sent.map(e => `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--accent);padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:700">💰 ${e.target_name}</div>
+              <div style="font-size:10px;color:var(--muted2)">${new Date(e.deadline).toLocaleTimeString()} deadline · GS ${e.target_gs}</div>
+            </div>
+            <div style="font-family:var(--font-hud);font-size:18px;color:var(--accent)">${Number(e.amount).toLocaleString()} ¢</div>
+          </div>`).join('');
+
+      recEl.innerHTML = data.received.length === 0
+        ? '<div style="color:var(--muted);font-size:11px;padding:8px 0">No demands on you right now.</div>'
+        : data.received.map(e => `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--red);padding:10px 14px;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:var(--red)">⚠ ${e.extorter_name} demands payment</div>
+                <div style="font-size:10px;color:var(--muted2)">Deadline: ${new Date(e.deadline).toLocaleString()}</div>
+              </div>
+              <div style="font-family:var(--font-hud);font-size:20px;color:var(--red)">${Number(e.amount).toLocaleString()} ¢</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn-primary" style="font-size:10px;padding:5px 14px" onclick="Game.payExtortion('${e.id}')">PAY UP</button>
+              <button class="btn-secondary" style="font-size:10px;padding:5px 14px" onclick="Game.refuseExtortion('${e.id}')">REFUSE</button>
+            </div>
+          </div>`).join('');
+    } catch(e) { this.notify(e.message,'error'); }
+  },
+
+  async sendExtortion() {
+    const targetName = document.getElementById('ext-target').value.trim();
+    const amount = parseInt(document.getElementById('ext-amount').value);
+    const errEl = document.getElementById('ext-error');
+    errEl.textContent = '';
+    if (!targetName || !amount || amount < 200) { errEl.textContent = 'Enter a target and amount (min 200¢)'; return; }
+    try {
+      const lb = await API.get('/leaderboard/gear_score');
+      const target = lb.entries?.find(e => e.name?.toLowerCase() === targetName.toLowerCase());
+      if (!target) { errEl.textContent = 'Agent not found on leaderboard'; return; }
+      await ExtortionAPI.send(target.character_id, amount);
+      this.notify(`💰 Demand sent to ${targetName}`, '', 3000);
+      document.getElementById('ext-target').value = '';
+      document.getElementById('ext-amount').value = '';
+      this.loadExtortionView();
+    } catch(e) { errEl.textContent = e.message; }
+  },
+
+  async payExtortion(id) {
+    try {
+      const r = await ExtortionAPI.pay(id);
+      this.notify(r.message, 'success');
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadExtortionView();
+    } catch(e) { this.notify(e.message,'error'); }
+  },
+
+  async refuseExtortion(id) {
+    try {
+      const r = await ExtortionAPI.refuse(id);
+      this.notify(r.message, '', 3000);
+      this.loadExtortionView();
+    } catch(e) { this.notify(e.message,'error'); }
+  },
+
+  // ============================================================
+  // DRUG LAB
+  // ============================================================
+  async loadDrugLabView() {
+    try {
+      const data = await DrugLabAPI.get();
+      const el = document.getElementById('druglab-panel');
+      if (!data.lab) {
+        el.innerHTML = `
+          <div style="font-size:11px;color:var(--muted2);line-height:1.7;margin-bottom:16px">
+            Establish a stash house to start generating passive income. Earnings tick every hour while you're offline.
+          </div>
+          <div style="margin-bottom:14px">
+            ${Object.entries(data.tiers).map(([t,tier]) => `
+              <div class="pvp-stat-row"><span class="pvs-label">Tier ${t}: ${tier.name}</span><span class="pvs-val">${(tier.hourlyRate*100).toFixed(0)}%/hr</span></div>
+            `).join('')}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="number" id="lab-invest-amount" placeholder="Investment (¢)" min="5000" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:8px 12px;font-family:var(--font-hud);font-size:13px;outline:none;flex:1">
+            <button class="btn-primary" style="padding:8px 18px" onclick="Game.investLab()">ESTABLISH</button>
+          </div>
+          <div id="lab-error" style="color:var(--red);font-size:11px;margin-top:6px"></div>`;
+        return;
+      }
+      const l = data.lab;
+      const t = l.tierInfo;
+      el.innerHTML = `
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+          <div>
+            <div style="font-size:9px;letter-spacing:3px;color:var(--muted2)">OPERATION</div>
+            <div style="font-size:20px;font-weight:700;color:var(--accent)">${t.name}</div>
+            <div style="font-size:10px;color:var(--muted2)">Tier ${l.tier} · ${(t.hourlyRate*100).toFixed(0)}% per hour</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9px;letter-spacing:2px;color:var(--muted2)">INVESTED</div>
+            <div style="font-family:var(--font-hud);font-size:20px;color:var(--accent)">${Number(l.invested).toLocaleString()} ¢</div>
+          </div>
+        </div>
+        <div style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:9px;letter-spacing:2px;color:var(--green);margin-bottom:2px">PENDING EARNINGS</div>
+            <div style="font-family:var(--font-hud);font-size:24px;font-weight:700;color:var(--green)">${Number(l.pending).toLocaleString()} ¢</div>
+          </div>
+          <button class="btn-primary" onclick="Game.collectLab()">COLLECT</button>
+        </div>
+        ${t.upgradeAt ? `
+          <div style="font-size:10px;color:var(--muted2);margin-bottom:10px">
+            Upgrade at ${Number(t.upgradeAt).toLocaleString()}¢ invested
+            (${Number(t.upgradeAt - l.invested).toLocaleString()}¢ to go)
+          </div>` : '<div style="font-size:10px;color:var(--exotic);margin-bottom:10px">MAX TIER — Plantation operational</div>'}
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="number" id="lab-invest-amount" placeholder="Invest more (¢)" min="1000" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:8px 12px;font-family:var(--font-hud);font-size:13px;outline:none;flex:1">
+          <button class="btn-secondary" style="padding:8px 18px" onclick="Game.investLab()">INVEST MORE</button>
+        </div>
+        <div id="lab-error" style="color:var(--red);font-size:11px;margin-top:6px"></div>`;
+    } catch(e) { this.notify(e.message,'error'); }
+  },
+
+  async investLab() {
+    const amount = parseInt(document.getElementById('lab-invest-amount')?.value);
+    const errEl = document.getElementById('lab-error');
+    if (errEl) errEl.textContent = '';
+    if (!amount || amount < 1000) { if(errEl) errEl.textContent='Minimum 1,000¢'; return; }
+    try {
+      const r = await DrugLabAPI.invest(amount);
+      this.notify(r.message, 'success', 4000);
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadDrugLabView();
+    } catch(e) { const errEl = document.getElementById('lab-error'); if(errEl) errEl.textContent = e.message; }
+  },
+
+  async collectLab() {
+    try {
+      const r = await DrugLabAPI.collect();
+      this.notify(r.message, 'success', 4000);
+      this.flashScreen('#2ecc71');
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadDrugLabView();
+    } catch(e) { this.notify(e.message,'error'); }
+  },
+
+  // ============================================================
+  // FIGHT CLUB
+  // ============================================================
+  async loadFightClubView() {
+    try {
+      const data = await FightClubAPI.get();
+      const el = document.getElementById('fightclub-bracket');
+      const infoEl = document.getElementById('fightclub-info');
+      const myEntryEl = document.getElementById('fightclub-my-entry');
+
+      if (infoEl) infoEl.innerHTML = `
+        <div class="pvp-stat-row"><span class="pvs-label">Entry fee</span><span class="pvs-val">${Number(data.entryFee).toLocaleString()} ¢</span></div>
+        <div class="pvp-stat-row"><span class="pvs-label">Prize pool</span><span class="pvs-val" style="color:var(--green)">${Number(data.prizePool).toLocaleString()} ¢</span></div>
+        <div class="pvp-stat-row"><span class="pvs-label">Entrants</span><span class="pvs-val">${data.bracket.length}</span></div>
+        <div class="pvp-stat-row"><span class="pvs-label">Week</span><span class="pvs-val">${data.week}</span></div>`;
+
+      if (myEntryEl) {
+        myEntryEl.innerHTML = data.myEntry
+          ? `<div style="background:var(--accent-dim);border:1px solid var(--accent);padding:10px 14px;margin-bottom:10px">
+              <div style="font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:4px">YOUR STANDING</div>
+              <div style="font-family:var(--font-hud);font-size:18px;font-weight:700">${data.myEntry.wins}W / ${data.myEntry.losses}L</div>
+            </div>`
+          : `<button class="btn-danger" style="width:100%;margin-bottom:10px" onclick="Game.enterFightClub()">ENTER THIS WEEK (${data.entryFee.toLocaleString()}¢)</button>`;
+      }
+
+      el.innerHTML = data.bracket.length === 0
+        ? '<div style="color:var(--muted);font-size:11px;padding:8px 0">No entrants yet this week. Be the first.</div>'
+        : data.bracket.map((e, i) => {
+            const isMe = e.entrant_id === this.character?.id;
+            const rank = this.getRank(e.level || 1);
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid var(--border);${isMe?'background:var(--accent-dim)':''}">
+              <div style="font-size:9px;color:var(--muted);width:20px;text-align:center">${i+1}</div>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:700">${e.name}${isMe?' <span style="color:var(--accent)">[YOU]</span>':''}</div>
+                <div style="font-size:10px;color:${rank.color}">${rank.title} · GS ${e.gear_score}</div>
+              </div>
+              <div style="font-family:var(--font-hud);font-size:14px;color:var(--green)">${e.wins}W</div>
+              <div style="font-family:var(--font-hud);font-size:12px;color:var(--red)">${e.losses}L</div>
+              ${data.myEntry && !isMe
+                ? `<button onclick="Game.fightClubMatch('${e.entrant_id}')" style="font-size:9px;padding:3px 10px;background:rgba(232,137,12,0.15);border:1px solid var(--accent);color:var(--accent);cursor:pointer;font-weight:700">FIGHT</button>`
+                : ''}
+            </div>`;
+          }).join('');
+    } catch(e) { this.notify(e.message,'error'); }
+  },
+
+  async enterFightClub() {
+    try {
+      const r = await FightClubAPI.enter();
+      this.notify(r.message, 'success');
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadFightClubView();
+    } catch(e) { this.notify(e.message,'error'); }
+  },
+
+  async fightClubMatch(entrantId) {
+    try {
+      const r = await FightClubAPI.fight(entrantId);
+      this.flashScreen(r.playerWins ? '#e8890c' : '#e74c3c');
+      this.notify(
+        r.playerWins
+          ? `🥊 ${r.opponentName} defeated! +${r.xp} XP · +${r.respect}★`
+          : `🥊 Lost to ${r.opponentName} · +${r.xp} XP`,
+        r.playerWins ? 'success' : 'error', 4000
+      );
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadFightClubView();
+    } catch(e) { this.notify(e.message,'error'); }
   },
 
 }; // end Game

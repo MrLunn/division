@@ -47,6 +47,9 @@ app.use('/api/bounties',       require('./routes/bounties'));
 app.use('/api/events',         require('./routes/events'));
 app.use('/api/recalibration',  require('./routes/recalibration'));
 app.use('/api/jail',           require('./routes/jail'));
+app.use('/api/extortion',      require('./routes/extortion'));
+app.use('/api/druglab',        require('./routes/druglab'));
+app.use('/api/fightclub',      require('./routes/fightclub'));
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'online', time: new Date() }));

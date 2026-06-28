@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS clans (
   level        INT DEFAULT 1,
   xp           BIGINT DEFAULT 0,
   credits      BIGINT DEFAULT 0,
+  is_bot       BOOLEAN DEFAULT FALSE,
+  bot_gs       INT DEFAULT 0,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -270,6 +272,52 @@ CREATE TABLE IF NOT EXISTS jail_events (
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
+
+-- Extortion demands
+CREATE TABLE IF NOT EXISTS extortions (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  extorter_id   UUID REFERENCES characters(id) ON DELETE CASCADE,
+  target_id     UUID REFERENCES characters(id) ON DELETE CASCADE,
+  amount        INT NOT NULL,
+  paid          BOOLEAN DEFAULT FALSE,
+  deadline      TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '12 hours',
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Drug labs (hashplantasje) — passive income
+CREATE TABLE IF NOT EXISTS drug_labs (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  character_id  UUID REFERENCES characters(id) ON DELETE CASCADE UNIQUE,
+  tier          INT DEFAULT 1,  -- 1=stash house, 2=lab, 3=plantation
+  invested      INT DEFAULT 0,
+  last_payout   TIMESTAMPTZ DEFAULT NOW(),
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Fight club brackets
+CREATE TABLE IF NOT EXISTS fight_club (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  week          INT NOT NULL,
+  year          INT NOT NULL,
+  entrant_id    UUID REFERENCES characters(id) ON DELETE CASCADE,
+  wins          INT DEFAULT 0,
+  losses        INT DEFAULT 0,
+  eliminated    BOOLEAN DEFAULT FALSE,
+  entry_fee     INT DEFAULT 1000,
+  UNIQUE(week, year, entrant_id)
+);
+
+-- Clan PvP attacks
+CREATE TABLE IF NOT EXISTS clan_attacks (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  attacker_clan UUID REFERENCES clans(id) ON DELETE CASCADE,
+  defender_clan UUID REFERENCES clans(id) ON DELETE CASCADE,
+  attacker_won  BOOLEAN,
+  credits_looted INT DEFAULT 0,
+  xp_gained     INT DEFAULT 0,
+  occurred_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Recalibration log (one reroll per item)
 CREATE TABLE IF NOT EXISTS recalibrations (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -386,10 +434,12 @@ async function init() {
     console.log('🔧 Initializing Division MMO database...\n');
     await client.query(schema);
     console.log('✅ Schema created');
-    // Migrate existing DB — add new columns if they don't exist yet
+    // Migrate existing DB
     await client.query(`ALTER TABLE characters ADD COLUMN IF NOT EXISTS respect INT DEFAULT 0`);
     await client.query(`ALTER TABLE characters ADD COLUMN IF NOT EXISTS is_jailed BOOLEAN DEFAULT FALSE`);
     await client.query(`ALTER TABLE characters ADD COLUMN IF NOT EXISTS jail_until TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE clans ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT FALSE`);
+    await client.query(`ALTER TABLE clans ADD COLUMN IF NOT EXISTS bot_gs INT DEFAULT 0`);
     // Drop global unique constraint on character names if it exists
     await client.query(`ALTER TABLE characters DROP CONSTRAINT IF EXISTS characters_name_key`).catch(() => {});
     await client.query(seedMissions);
@@ -398,6 +448,19 @@ async function init() {
     console.log('✅ Item definitions seeded');
     await client.query(seedBases);
     console.log('✅ Bases seeded');
+
+    // Seed bot clans (Oslo criminal faction gangs)
+    await client.query(`
+      INSERT INTO clans (name, tag, description, is_bot, bot_gs, level, xp, credits) VALUES
+      ('Young Guns',         'YG',   'Waterfront crew. Ran Aker Brygge in the 2000s.',                         true, 180, 8,  420000, 95000),
+      ('B-Gjengen',          'BG',   'Karl Johans gate and Tøyen. Oldest rivalry in Oslo.',                    true, 220, 10, 580000, 140000),
+      ('313-nettverket',     '313',  'Grønland crew. Street-level but dangerous.',                             true, 195, 9,  490000, 110000),
+      ('Balkan Brotherhood', 'BB',   'Serbian-Montenegrin arms network. Operate out of Bjørvika.',             true, 340, 15, 920000, 280000),
+      ('Bandidos Norway',    'BDN',  'Five Norwegian chapters. Drug and arms trafficking.',                    true, 290, 13, 770000, 210000),
+      ('Comanches MC',       'CMC',  'Banned by the Supreme Court 2024. Nothing left to lose.',               true, 370, 16, 1050000, 320000)
+      ON CONFLICT (name) DO UPDATE SET is_bot=true, bot_gs=EXCLUDED.bot_gs, level=EXCLUDED.level, xp=EXCLUDED.xp, credits=EXCLUDED.credits
+    `);
+    console.log('✅ Bot clans seeded');
     console.log('\n🎮 Database ready! Run: npm start\n');
   } catch (err) {
     console.error('❌ Init error:', err.message);

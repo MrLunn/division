@@ -186,4 +186,95 @@ router.post('/attack-bot', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/pvp/attack-player/:targetId — attack player directly from leaderboard
+router.post('/attack-player/:targetId', requireAuth, async (req, res) => {
+  const { targetId } = req.params;
+  if (targetId === req.character.id) return res.status(400).json({ error:'Cannot attack yourself' });
+
+  const targetResult = await db.query('SELECT * FROM characters WHERE id=$1',[targetId]);
+  if (!targetResult.rows[0]) return res.status(404).json({ error:'Agent not found' });
+  const target = targetResult.rows[0];
+
+  // GS check — can't punch too far down
+  if (target.gear_score < req.character.gear_score * 0.5)
+    return res.status(400).json({ error:'Target GS too low — honour the code' });
+
+  try {
+    const { combineStats } = require('../engine/combat');
+    const myGs  = req.character.gear_score || 100;
+    const oppGs = target.gear_score || 100;
+    const gsDelta = myGs - oppGs;
+    const winChance = Math.min(0.90, Math.max(0.10, 0.5 + (gsDelta / 200)));
+    const iWin = Math.random() < winChance;
+
+    const xp      = iWin ? 800  : 150;
+    const credits = iWin ? Math.floor(300 + gsDelta * 2) : 0;
+    const respect = iWin ? 30 : 5;
+
+    if (iWin) {
+      await db.query('UPDATE characters SET xp=xp+$1,credits=credits+$2,pvp_kills=pvp_kills+1,respect=respect+$3 WHERE id=$4',
+        [xp, credits, respect, req.character.id]);
+      await db.query('UPDATE characters SET pvp_deaths=pvp_deaths+1 WHERE id=$1',[targetId]);
+    } else {
+      await db.query('UPDATE characters SET xp=xp+$1,pvp_deaths=pvp_deaths+1 WHERE id=$2',[xp, req.character.id]);
+      await db.query('UPDATE characters SET pvp_kills=pvp_kills+1 WHERE id=$1',[targetId]);
+    }
+
+    global.broadcastActivity(req.io, {
+      type:'pvp',
+      text:`☠ ${iWin ? req.character.name : target.name} eliminated ${iWin ? target.name : req.character.name} [LEADERBOARD PVP]`,
+    });
+    global.notifyAgent(req.io, targetId, 'pvp:attacked', { by: req.character.name, iWon: !iWin });
+
+    res.json({ playerWins: iWin, targetName: target.name, targetGs: oppGs, xp, credits, respect });
+  } catch(err) { console.error(err); res.status(500).json({ error:'PvP failed' }); }
+});
+
+// POST /api/pvp/attack-clan/:clanId — raid a clan (bot or real)
+router.post('/attack-clan/:clanId', requireAuth, async (req, res) => {
+  const clan = await db.query('SELECT * FROM clans WHERE id=$1',[req.params.clanId]);
+  if (!clan.rows[0]) return res.status(404).json({ error:'Clan not found' });
+  const c = clan.rows[0];
+
+  const myGs = req.character.gear_score || 100;
+  const defGs = c.is_bot ? c.bot_gs : 200; // real clan uses avg GS placeholder
+  const gsDelta = myGs - defGs;
+  const winChance = Math.min(0.88, Math.max(0.12, 0.5 + (gsDelta / 300)));
+  const iWin = Math.random() < winChance;
+
+  const creditsLooted = iWin ? Math.min(Math.floor(c.credits * 0.05), 5000) : 0;
+  const xp      = iWin ? 2000 : 400;
+  const respect = iWin ? 60   : 10;
+
+  if (iWin && creditsLooted > 0) {
+    await db.query('UPDATE clans SET credits=GREATEST(0,credits-$1) WHERE id=$2',[creditsLooted, c.id]);
+    await db.query('UPDATE characters SET xp=xp+$1,credits=credits+$2,respect=respect+$3,pvp_kills=pvp_kills+1 WHERE id=$4',
+      [xp, creditsLooted, respect, req.character.id]);
+  } else {
+    await db.query('UPDATE characters SET xp=xp+$1,respect=respect+$2 WHERE id=$3',[xp, respect, req.character.id]);
+  }
+
+  await db.query(
+    'INSERT INTO clan_attacks (attacker_clan,defender_clan,attacker_won,credits_looted,xp_gained) SELECT cm.clan_id,$1,$2,$3,$4 FROM clan_members cm WHERE cm.character_id=$5 LIMIT 1',
+    [c.id, iWin, creditsLooted, xp, req.character.id]
+  ).catch(() => {}); // ignore if not in a clan
+
+  global.broadcastActivity(req.io, {
+    type: iWin ? 'clan_raid_win' : 'clan_raid_loss',
+    text: iWin
+      ? `⚔ ${req.character.name} raided ${c.name} — looted ${creditsLooted.toLocaleString()}¢`
+      : `⚔ ${req.character.name} attacked ${c.name} and was repelled`,
+  });
+
+  res.json({
+    playerWins: iWin, clanName: c.name, clanGs: defGs,
+    creditsLooted, xp, respect,
+    log: [
+      `CLAN RAID — ${req.character.name} vs ${c.name} [${c.tag}]`,
+      `Your GS: ${myGs} vs Clan avg GS: ${defGs}`,
+      iWin ? `Raid successful — looted ${creditsLooted.toLocaleString()}¢ from their treasury` : `Raid failed — ${c.name} held their ground`,
+    ],
+  });
+});
+
 module.exports = router;

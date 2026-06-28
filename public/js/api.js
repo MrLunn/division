@@ -103,3 +103,22 @@ const JailAPI = {
   breakOut:   (eventId)             => API.post(`/jail/${eventId}/break`),
   raiseBounty:(eventId, amount)     => API.post(`/jail/${eventId}/bounty`, { amount }),
 };
+
+const ExtortionAPI = {
+  get:    ()                      => API.get('/extortion'),
+  send:   (targetId, amount)      => API.post('/extortion', { targetId, amount }),
+  pay:    (id)                    => API.post(`/extortion/${id}/pay`),
+  refuse: (id)                    => API.post(`/extortion/${id}/refuse`),
+};
+
+const DrugLabAPI = {
+  get:     ()       => API.get('/druglab'),
+  invest:  (amount) => API.post('/druglab/invest', { amount }),
+  collect: ()       => API.post('/druglab/collect'),
+};
+
+const FightClubAPI = {
+  get:   ()          => API.get('/fightclub'),
+  enter: ()          => API.post('/fightclub/enter'),
+  fight: (entrantId) => API.post(`/fightclub/fight/${entrantId}`),
+};
