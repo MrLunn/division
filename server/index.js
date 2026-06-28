@@ -46,6 +46,9 @@ app.get('/setup-admin-mozell', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Admin panel — must be BEFORE express.static so it takes priority
+app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, '../public/admin.html')));
+
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Attach io to request for use in routes
