@@ -77,6 +77,46 @@ this.ctx = this.canvas.getContext('2d');
   connectionLines: [],
   lastLineSpawn: 0,
 
+  // Territory contests — flashing district overlays
+  _territoryContests: [],
+
+  triggerTerritoryContest(contest) {
+    this._territoryContests.push({ ...contest, born: Date.now(), alpha: 0, phase: 'in' });
+    setTimeout(() => {
+      this._territoryContests = this._territoryContests.filter(c => c.name !== contest.name);
+    }, 12000);
+  },
+
+  drawTerritoryContests() {
+    const { ctx, W, H, pulseT } = this;
+    const now = Date.now();
+    this._territoryContests.forEach(c => {
+      const age = (now - c.born) / 1000;
+      const flash = Math.sin(pulseT * 6) * 0.5 + 0.5; // fast flash
+      const alpha = Math.min(0.35, age * 0.15) * flash;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.arc(c.x * W, c.y * H, 40, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = Math.min(0.8, age * 0.3) * flash;
+      ctx.strokeStyle = '#e74c3c';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Contest label
+      ctx.globalAlpha = Math.min(0.9, age * 0.4);
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.floor(W * 0.009)}px Share Tech Mono`;
+      ctx.textAlign = 'center';
+      ctx.fillText('⚔ CONTESTED', c.x * W, c.y * H - 50);
+      ctx.fillStyle = '#e74c3c';
+      ctx.font = `${Math.floor(W * 0.007)}px Share Tech Mono`;
+      ctx.fillText(c.challenger + ' vs ' + c.faction, c.x * W, c.y * H - 38);
+      ctx.restore();
+    });
+  },
+
   loop() {
     this.pulseT += 0.018;
     this.updateBotAgents();
@@ -129,6 +169,7 @@ this.ctx = this.canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, W, H);
     this.drawBase(); this.drawFjord(); this.drawDistricts();
+    this.drawTerritoryContests();
     this.drawConnectionLines();
     this.drawStreets(); this.drawStreetLabels(); this.drawDistrictLabels();
     this.drawDZBorder(); this.drawMissions();
@@ -161,6 +202,7 @@ this.ctx = this.canvas.getContext('2d');
   drawBotAgents() {
     const { ctx, W, H, pulseT } = this;
     this.botAgents.forEach((bot, i) => {
+      if (bot._hidden) return; // temporarily eliminated
       const x = bot.x * W, y = bot.y * H;
       const pulse = Math.sin(pulseT * 2 + i * 0.8) * 0.5 + 0.5;
 
@@ -438,6 +480,33 @@ this.ctx = this.canvas.getContext('2d');
   onHover(e) {
     const rect=this.canvas.getBoundingClientRect();
     const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    const tt=document.getElementById('map-tooltip');
+    if(!tt) return;
+
+    // Check bot agents first
+    let hoveredBot=null;
+    for(const bot of this.botAgents){
+      const dx=mx-bot.x*this.W, dy=my-bot.y*this.H;
+      if(Math.sqrt(dx*dx+dy*dy)<18){hoveredBot=bot;break;}
+    }
+    this.hoveredBot=hoveredBot;
+    if(hoveredBot){
+      this.canvas.style.cursor='crosshair';
+      const tier=hoveredBot.gs>350?'ELITE':hoveredBot.gs>250?'HARD':hoveredBot.gs>150?'NORMAL':'EASY';
+      const bountyLine=hoveredBot.bounty?`<div class="tt-reward">☠ BOUNTY: ${hoveredBot.bounty.toLocaleString()}¢</div>`:'';
+      tt.innerHTML=`<h4 style="color:${hoveredBot.color}">${hoveredBot.name}</h4>
+        <div class="tt-diff" style="color:${hoveredBot.color}88">ROGUE AGENT · ${tier}</div>
+        <div style="font-size:11px;color:var(--muted2);margin-bottom:6px">⚠ ${hoveredBot.faction} operative</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">GS ${hoveredBot.gs||'???'} · Active in Dark Zone</div>
+        ${bountyLine}
+        <button class="tt-launch" style="background:var(--red);border:none" onclick="window.Game&&window.Game.attackBotOnMap('${hoveredBot.name}',${hoveredBot.gs||200})">☠ ATTACK AGENT</button>`;
+      tt.style.display='block';
+      tt.style.left=Math.min(mx+22,this.W-260)+'px';
+      tt.style.top=Math.min(my-10,this.H-175)+'px';
+      return;
+    }
+    this.canvas.style.cursor='default';
+
     const merged=this.getMergedMissions();
     let found=null;
     for(let i=0;i<merged.length;i++){
@@ -445,18 +514,17 @@ this.ctx = this.canvas.getContext('2d');
       if(Math.sqrt(dx*dx+dy*dy)<22){found=i;break;}
     }
     this.hovered=found;
-    const tt=document.getElementById('map-tooltip');
-    if(!tt) return;
     if(found!==null){
       const m=merged[found];
       const typeLabels={street_fight:'⚔ STREET FIGHT',mission:'📍 MISSION',expedition:'⚡ EXPEDITION',stronghold:'🏰 STRONGHOLD',dark_zone:'⚠ DARK ZONE',raid:'💀 RAID',bounty:'🎯 BOUNTY',base_raid:'🏳 BASE CAPTURE',daily:'📅 DAILY'};
+      const missionId=m.dbMission?m.dbMission.id:'';
       tt.innerHTML=`<h4 style="color:${m.color}">${m.key}</h4>
         <div class="tt-diff" style="color:${m.color}88">${typeLabels[m.type]||m.type.toUpperCase()} · ${m.diff.toUpperCase()}</div>
         <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">📍 ${m.street}, ${m.district}</div>
-        ${m.faction ? `<div style="font-size:10px;color:#e74c3c;letter-spacing:1px;margin-bottom:6px">⚠ ${m.faction}</div>` : ''}
+        ${m.faction?`<div style="font-size:10px;color:#e74c3c;letter-spacing:1px;margin-bottom:6px">⚠ ${m.faction}</div>`:''}
         <div style="font-size:11px;color:var(--text2);margin-bottom:8px">${m.desc}</div>
         ${m.dbMission?'<div class="tt-reward">+'+m.dbMission.xp_reward?.toLocaleString()+' XP · +'+m.dbMission.credit_reward?.toLocaleString()+' ¢</div>':'<div class="tt-reward" style="color:var(--muted2)">No mission data</div>'}
-        <button class="tt-launch" onclick="window.Game && window.Game.runMission('" + (m.dbMission ? m.dbMission.id : '') + "', '" + m.key + "')">⚡ LAUNCH MISSION</button>`;
+        <button class="tt-launch" onclick="window.Game&&window.Game.runMission('${missionId}','${m.key.replace(/'/g,"\\'")}')">⚡ LAUNCH MISSION</button>`;
       tt.style.display='block';
       tt.style.left=Math.min(mx+22,this.W-260)+'px';
       tt.style.top=Math.min(my-10,this.H-175)+'px';
@@ -464,6 +532,7 @@ this.ctx = this.canvas.getContext('2d');
   },
 
   onClick(e) {
+    if(this.hoveredBot){ window.Game&&window.Game.attackBotOnMap(this.hoveredBot.name,this.hoveredBot.gs||200); return; }
     if(this.hovered!==null){
       const m=this.getMergedMissions()[this.hovered];
       if(m&&m.dbMission&&window.Game) window.Game.runMission(m.dbMission.id,m.key);

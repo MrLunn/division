@@ -144,6 +144,14 @@ const Game = {
       this.notify(`🥊 ${message}`, '', 6000);
     });
 
+    // Territory contests on the map
+    this.socket.on('map:territory_contest', (contest) => {
+      if (MapEngine && MapEngine.triggerTerritoryContest) {
+        MapEngine.triggerTerritoryContest(contest);
+      }
+      this.notify(`⚔ ${contest.challenger} vs ${contest.faction} — ${contest.name} is contested!`, 'error', 5000);
+    });
+
     // Released from jail
     this.socket.on('jail:released', ({ by }) => {
       if (this.character) { this.character.is_jailed = false; this.character.jail_until = null; }
@@ -341,6 +349,7 @@ const Game = {
       extortion:   () => this.loadExtortionView(),
       druglab:     () => this.loadDrugLabView(),
       fightclub:   () => this.loadFightClubView(),
+      poker:       () => this.loadPokerView(),
       darkzone:    () => this.loadDarkZoneView(),
       clans:       () => this.loadClansView(),
       leaderboard: () => this.loadLeaderboardView(),
@@ -353,6 +362,7 @@ const Game = {
   // ============================================================
   async loadMapView() {
     MapEngine.init();
+    this._initBotAgentGS();
     try {
       const { missions } = await API.missions.list();
       this.missions = missions;
@@ -947,7 +957,51 @@ const Game = {
     }).join('');
   },
 
-  enterDZ() { this.notify('Entering Dark Zone — watch for rogues!', 'error'); },
+  // Give bots their GS values so the map tooltip shows them
+  _initBotAgentGS() {
+    if (!window.MapEngine) return;
+    const gsMap = {
+      'Ghost_Larsen': 280, 'IronFjord': 440, 'NordAgent': 320,
+      'Viper_Oslo': 195, 'SHD_Wraith': 475,
+    };
+    MapEngine.botAgents.forEach(b => { b.gs = gsMap[b.name] || 220; });
+  },
+
+  async attackBotOnMap(botName, botGs) {
+    try {
+      this.notify(`Engaging ${botName}...`, '', 1000);
+      await this.delay(900);
+      const result = await API.post('/pvp/attack-bot');
+      // Override result display to show map-bot context
+      const logEl = document.getElementById('pvp-combat-log');
+      if (logEl) {
+        logEl.style.display = 'block';
+        logEl.innerHTML = [
+          `<div style="color:var(--muted2);font-size:10px;letter-spacing:2px;margin-bottom:6px">// MAP ENCOUNTER: ${result.bot.name} [GS ${result.bot.gs} · ${result.bot.tier.toUpperCase()}]</div>`,
+          ...(result.log||[]).map(l => {
+            const isKill = l.includes('eliminated')||l.includes('killing blow');
+            return `<div class="${isKill?(result.playerWins?'log-success':'log-fail'):'log-hit'}">${l}</div>`;
+          }),
+          result.playerWins
+            ? `<div class="log-success" style="margin-top:6px">// ELIMINATED · +${result.credits?.toLocaleString()}¢ · +${result.xp} XP</div>`
+            : `<div class="log-fail" style="margin-top:6px">// AGENT DOWN · +${result.xp} XP</div>`,
+        ].join('');
+      }
+      if (result.playerWins) {
+        this.flashScreen('#e8890c');
+        this.notify(`☠ ${result.bot.name} eliminated on the map · +${result.credits?.toLocaleString()}¢`, 'success', 4000);
+        // Remove bot from map temporarily
+        const bot = MapEngine.botAgents.find(b => b.name === result.bot.name);
+        if (bot) { bot._hidden = true; setTimeout(() => { delete bot._hidden; }, 30000); }
+      } else {
+        this.flashScreen('#e74c3c');
+        this.notify(`${result.bot.name} [GS${result.bot.gs}] took you down on the map`, 'error', 4000);
+      }
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+    } catch(e) { this.notify(e.message,'error'); }
+  },
 
   async fightBot() {
     try {
@@ -1814,8 +1868,253 @@ const Game = {
   },
 
   // ============================================================
-  // FIGHT CLUB
+  // POKER DEN — Underground Blackjack
   // ============================================================
+  _poker: {
+    deck: [], player: [], dealer: [], bet: 0,
+    chips: 0, wins: 0, losses: 0, biggest: 0,
+    phase: 'bet', // bet | playing | done
+  },
+
+  loadPokerView() {
+    const p = this._poker;
+    p.chips = parseInt(this.character?.credits || 0);
+    this._updatePokerSidebar();
+    this._pokerShowBetControls();
+  },
+
+  _pokerCard(rank, suit) {
+    const suitColors = { '♥':'#e74c3c', '♦':'#e74c3c', '♣':'#d0dae8', '♠':'#d0dae8' };
+    const color = suitColors[suit] || '#d0dae8';
+    return { rank, suit, color, hidden: false };
+  },
+
+  _pokerValue(cards) {
+    let total = 0, aces = 0;
+    for (const c of cards) {
+      if (c.hidden) continue;
+      if (['J','Q','K'].includes(c.rank)) total += 10;
+      else if (c.rank === 'A') { total += 11; aces++; }
+      else total += parseInt(c.rank);
+    }
+    while (total > 21 && aces > 0) { total -= 10; aces--; }
+    return total;
+  },
+
+  _pokerDeck() {
+    const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+    const suits = ['♠','♥','♦','♣'];
+    const deck = [];
+    for (const r of ranks) for (const s of suits) deck.push(this._pokerCard(r, s));
+    // Shuffle (Fisher-Yates)
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  },
+
+  _renderPokerCards(cards, elId) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.innerHTML = cards.map(c => {
+      if (c.hidden) return `
+        <div style="width:56px;height:80px;background:var(--bg3);border:1px solid var(--border2);
+          clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));
+          display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--border2)">?</div>`;
+      return `
+        <div style="width:56px;height:80px;background:var(--bg2);border:1px solid var(--border2);
+          clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));
+          display:flex;flex-direction:column;align-items:center;justify-content:center;
+          padding:4px;animation:lootDrop 0.25s ease">
+          <div style="font-size:18px;font-weight:700;color:${c.color};font-family:var(--font-hud)">${c.rank}</div>
+          <div style="font-size:16px;color:${c.color}">${c.suit}</div>
+        </div>`;
+    }).join('');
+  },
+
+  _updatePokerScores() {
+    const p = this._poker;
+    const pScore = this._pokerValue(p.player);
+    const dVisible = p.dealer.filter(c => !c.hidden);
+    const dScore = this._pokerValue(dVisible);
+    const pEl = document.getElementById('poker-player-score');
+    const dEl = document.getElementById('poker-dealer-score');
+    if (pEl) pEl.textContent = `Score: ${pScore}${pScore > 21 ? ' — BUST!' : pScore === 21 ? ' — 21!' : ''}`;
+    if (dEl) dEl.textContent = p.phase === 'done' ? `Score: ${this._pokerValue(p.dealer)}` : `Score: ${dScore} + ?`;
+  },
+
+  _updatePokerSidebar() {
+    const p = this._poker;
+    const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    set('poker-chips',   (this.character?.credits || 0).toLocaleString() + ' ¢');
+    set('poker-bet-display', p.bet ? p.bet.toLocaleString() + ' ¢' : '—');
+    set('poker-wins',    p.wins);
+    set('poker-losses',  p.losses);
+    set('poker-biggest', p.biggest.toLocaleString() + ' ¢');
+    const betDisplay = document.getElementById('poker-current-bet');
+    if (betDisplay) betDisplay.textContent = p.bet ? `BET: ${p.bet.toLocaleString()} ¢` : '';
+  },
+
+  _pokerShowBetControls() {
+    const controls = document.getElementById('poker-controls');
+    const actions  = document.getElementById('poker-action-btns');
+    const result   = document.getElementById('poker-result');
+    if (controls) controls.style.display = 'flex';
+    if (actions)  actions.style.display  = 'none';
+    if (result)   result.style.display   = 'none';
+    this._renderPokerCards([], 'poker-dealer-cards');
+    this._renderPokerCards([], 'poker-player-cards');
+    const pScore = document.getElementById('poker-player-score');
+    const dScore = document.getElementById('poker-dealer-score');
+    if (pScore) pScore.textContent = '';
+    if (dScore) dScore.textContent = '';
+  },
+
+  pokerBet(amount) {
+    const p = this._poker;
+    const credits = this.character?.credits || 0;
+    if (amount > credits) { this.notify(`Not enough credits — need ${amount.toLocaleString()}¢`, 'error'); return; }
+    p.bet = amount;
+    p.deck = this._pokerDeck();
+    p.player = [p.deck.pop(), p.deck.pop()];
+    p.dealer = [p.deck.pop(), { ...p.deck.pop(), hidden: true }];
+    p.phase = 'playing';
+
+    this._renderPokerCards(p.player, 'poker-player-cards');
+    this._renderPokerCards(p.dealer, 'poker-dealer-cards');
+    this._updatePokerScores();
+    this._updatePokerSidebar();
+
+    const controls = document.getElementById('poker-controls');
+    const actions  = document.getElementById('poker-action-btns');
+    const doubleBtn = document.getElementById('poker-double-btn');
+    if (controls) controls.style.display = 'none';
+    if (actions)  actions.style.display  = 'flex';
+    if (doubleBtn) doubleBtn.style.opacity = '1';
+
+    // Check natural blackjack
+    if (this._pokerValue(p.player) === 21) {
+      setTimeout(() => this._pokerStandProcess(), 600);
+    }
+  },
+
+  pokerHit() {
+    const p = this._poker;
+    if (p.phase !== 'playing') return;
+    p.player.push(p.deck.pop());
+    const doubleBtn = document.getElementById('poker-double-btn');
+    if (doubleBtn) doubleBtn.style.opacity = '0.3';
+    this._renderPokerCards(p.player, 'poker-player-cards');
+    this._updatePokerScores();
+    if (this._pokerValue(p.player) > 21) this._pokerEnd('bust');
+  },
+
+  pokerStand() {
+    if (this._poker.phase !== 'playing') return;
+    this._pokerStandProcess();
+  },
+
+  async pokerDouble() {
+    const p = this._poker;
+    if (p.phase !== 'playing' || p.player.length !== 2) return;
+    const credits = this.character?.credits || 0;
+    if (p.bet * 2 > credits) { this.notify('Not enough credits to double down', 'error'); return; }
+    p.bet *= 2;
+    p.player.push(p.deck.pop());
+    this._renderPokerCards(p.player, 'poker-player-cards');
+    this._updatePokerScores();
+    this._updatePokerSidebar();
+    await this.delay(400);
+    if (this._pokerValue(p.player) > 21) this._pokerEnd('bust');
+    else this._pokerStandProcess();
+  },
+
+  async _pokerStandProcess() {
+    const p = this._poker;
+    p.phase = 'done';
+    // Reveal hole card
+    p.dealer.forEach(c => { c.hidden = false; });
+    this._renderPokerCards(p.dealer, 'poker-dealer-cards');
+    this._updatePokerScores();
+    await this.delay(500);
+
+    // Dealer hits soft 17
+    while (this._pokerValue(p.dealer) < 17) {
+      await this.delay(500);
+      p.dealer.push(p.deck.pop());
+      this._renderPokerCards(p.dealer, 'poker-dealer-cards');
+      this._updatePokerScores();
+    }
+
+    const pScore = this._pokerValue(p.player);
+    const dScore = this._pokerValue(p.dealer);
+    const isBlackjack = p.player.length === 2 && pScore === 21;
+
+    if (pScore > 21) this._pokerEnd('bust');
+    else if (dScore > 21) this._pokerEnd('dealer_bust');
+    else if (isBlackjack && dScore !== 21) this._pokerEnd('blackjack');
+    else if (pScore > dScore) this._pokerEnd('win');
+    else if (pScore === dScore) this._pokerEnd('push');
+    else this._pokerEnd('lose');
+  },
+
+  async _pokerEnd(outcome) {
+    const p = this._poker;
+    p.phase = 'done';
+
+    const msgs = {
+      bust:        { text:'BUST — You went over 21', color:'var(--red)',    credit: -p.bet },
+      dealer_bust: { text:'DEALER BUSTS — You win!', color:'var(--green)',  credit: p.bet  },
+      blackjack:   { text:'BLACKJACK! 3:2 payout',   color:'var(--exotic)', credit: Math.floor(p.bet * 1.5) },
+      win:         { text:'YOU WIN',                  color:'var(--green)',  credit: p.bet  },
+      push:        { text:'PUSH — Bet returned',      color:'var(--muted2)', credit: 0      },
+      lose:        { text:'DEALER WINS',               color:'var(--red)',    credit: -p.bet },
+    };
+
+    const outcome_data = msgs[outcome];
+    const result = document.getElementById('poker-result');
+    const actions = document.getElementById('poker-action-btns');
+    if (actions) actions.style.display = 'none';
+    if (result) {
+      result.style.display = 'block';
+      result.style.borderColor = outcome_data.color;
+      result.style.background = outcome_data.color + '22';
+      result.style.color = outcome_data.color;
+      result.innerHTML = `
+        <div style="font-size:20px;font-weight:700;letter-spacing:3px;margin-bottom:8px">${outcome_data.text}</div>
+        <div style="font-family:var(--font-hud);font-size:18px">${outcome_data.credit >= 0 ? '+' : ''}${outcome_data.credit.toLocaleString()}¢</div>
+        <button onclick="Game._pokerNewRound()" style="margin-top:12px;background:var(--accent);border:none;color:#000;padding:8px 24px;font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))">DEAL AGAIN</button>`;
+    }
+
+    // Apply credit change to server
+    if (outcome_data.credit !== 0) {
+      try {
+        const delta = outcome_data.credit;
+        await API.post('/pvp/poker-settle', { delta, bet: p.bet, outcome }).catch(() => {});
+        // Update locally for immediate feedback
+        if (this.character) this.character.credits = Math.max(0, (this.character.credits||0) + delta);
+        this.updateHUD();
+      } catch(_) {}
+    }
+
+    // Track stats
+    if (['win','dealer_bust','blackjack'].includes(outcome)) {
+      p.wins++;
+      if (outcome_data.credit > p.biggest) p.biggest = outcome_data.credit;
+      this.flashScreen('#2ecc71');
+    } else if (['bust','lose'].includes(outcome)) {
+      p.losses++;
+      this.flashScreen('#e74c3c');
+    }
+    p.bet = 0;
+    this._updatePokerSidebar();
+  },
+
+  _pokerNewRound() {
+    this._poker.phase = 'bet';
+    this._pokerShowBetControls();
+  },
   async loadFightClubView() {
     try {
       const data = await FightClubAPI.get();

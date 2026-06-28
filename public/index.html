@@ -81,6 +81,7 @@
           <button class="navbtn"        data-view="extortion"   onclick="switchView('extortion')">EXTORTION</button>
           <button class="navbtn"        data-view="druglab"     onclick="switchView('druglab')">DRUG LAB</button>
           <button class="navbtn"        data-view="fightclub"   onclick="switchView('fightclub')">FIGHT CLUB</button>
+          <button class="navbtn"        data-view="poker"       onclick="switchView('poker')">POKER DEN</button>
           <button class="navbtn"        data-view="darkzone"    onclick="switchView('darkzone')">DARK ZONE</button>
           <button class="navbtn"        data-view="clans"       onclick="switchView('clans')">CLANS</button>
           <button class="navbtn"        data-view="leaderboard" onclick="switchView('leaderboard')">LEADERBOARD</button>
@@ -437,8 +438,74 @@
         </div>
       </div>
 
-      <!-- JAIL VIEW -->
-      <div id="view-jail" class="view">
+      <!-- POKER DEN VIEW (Underground Blackjack) -->
+      <div id="view-poker" class="view">
+        <div style="display:grid;grid-template-columns:1fr 260px;height:100%;gap:0">
+          <div style="padding:20px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start">
+            <div style="width:100%;max-width:580px">
+              <div class="panel-title" style="margin-bottom:6px">// UNDERGROUND POKER DEN — OSLO SENTRUM</div>
+              <div style="font-size:10px;color:var(--muted2);margin-bottom:20px;letter-spacing:1px">Run by B-Gjengen. No cameras. No rules. Lose big enough and you leave in a bag.</div>
+
+              <!-- Dealer hand -->
+              <div style="margin-bottom:20px">
+                <div style="font-size:9px;letter-spacing:3px;color:var(--muted2);margin-bottom:8px">DEALER</div>
+                <div id="poker-dealer-cards" style="display:flex;gap:8px;flex-wrap:wrap;min-height:80px"></div>
+                <div id="poker-dealer-score" style="font-family:var(--font-hud);font-size:13px;color:var(--muted2);margin-top:6px"></div>
+              </div>
+
+              <!-- Divider -->
+              <div style="height:1px;background:var(--border);margin:16px 0"></div>
+
+              <!-- Player hand -->
+              <div style="margin-bottom:20px">
+                <div style="font-size:9px;letter-spacing:3px;color:var(--muted2);margin-bottom:8px">YOU</div>
+                <div id="poker-player-cards" style="display:flex;gap:8px;flex-wrap:wrap;min-height:80px"></div>
+                <div id="poker-player-score" style="font-family:var(--font-hud);font-size:13px;color:var(--accent);margin-top:6px"></div>
+              </div>
+
+              <!-- Result -->
+              <div id="poker-result" style="display:none;padding:16px;text-align:center;margin-bottom:16px;border:1px solid;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))"></div>
+
+              <!-- Controls -->
+              <div id="poker-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <div style="display:flex;gap:6px;align-items:center">
+                  <span style="font-size:10px;color:var(--muted2);letter-spacing:1px">BET</span>
+                  <button onclick="Game.pokerBet(100)"  class="btn-secondary" style="font-size:11px;padding:6px 12px">100¢</button>
+                  <button onclick="Game.pokerBet(500)"  class="btn-secondary" style="font-size:11px;padding:6px 12px">500¢</button>
+                  <button onclick="Game.pokerBet(1000)" class="btn-secondary" style="font-size:11px;padding:6px 12px">1,000¢</button>
+                  <button onclick="Game.pokerBet(5000)" class="btn-secondary" style="font-size:11px;padding:6px 12px">5,000¢</button>
+                </div>
+                <div id="poker-current-bet" style="font-family:var(--font-hud);font-size:16px;color:var(--accent)"></div>
+              </div>
+              <div id="poker-action-btns" style="display:none;display:none;gap:8px;margin-top:12px">
+                <button onclick="Game.pokerHit()"   class="btn-primary"    style="padding:10px 28px;font-size:13px">HIT</button>
+                <button onclick="Game.pokerStand()" class="btn-secondary"  style="padding:10px 28px;font-size:13px">STAND</button>
+                <button onclick="Game.pokerDouble()" class="btn-secondary" style="padding:10px 28px;font-size:13px" id="poker-double-btn">DOUBLE DOWN</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sidebar stats -->
+          <div style="padding:14px;border-left:1px solid var(--border);overflow-y:auto">
+            <div class="panel-title" style="margin-bottom:12px">// STATS</div>
+            <div class="pvp-stat-row"><span class="pvs-label">Chips</span><span class="pvs-val" id="poker-chips">—</span></div>
+            <div class="pvp-stat-row"><span class="pvs-label">Current bet</span><span class="pvs-val" id="poker-bet-display">—</span></div>
+            <div class="pvp-stat-row"><span class="pvs-label">Wins</span><span class="pvs-val" id="poker-wins" style="color:var(--green)">0</span></div>
+            <div class="pvp-stat-row"><span class="pvs-label">Losses</span><span class="pvs-val" id="poker-losses" style="color:var(--red)">0</span></div>
+            <div class="pvp-stat-row"><span class="pvs-label">Biggest win</span><span class="pvs-val" id="poker-biggest" style="color:var(--exotic)">0¢</span></div>
+            <div style="margin-top:16px;font-size:9px;letter-spacing:3px;color:var(--muted2);margin-bottom:8px">RULES</div>
+            <div style="font-size:10px;color:var(--muted2);line-height:1.8">
+              Standard blackjack. Hit 21 or get closer than the dealer without busting.<br><br>
+              <span style="color:var(--accent)">Blackjack pays 3:2</span><br>
+              Dealer hits soft 17.<br>
+              Double down on first 2 cards.<br><br>
+              Win credits go straight to your agent wallet.
+            </div>
+          </div>
+        </div>
+      </div>
+
+
         <div style="display:grid;grid-template-columns:1fr 300px;height:100%;gap:0">
           <div style="padding:14px;overflow-y:auto">
             <div class="panel-title" style="margin-bottom:12px">// CUSTODY ROSTER

@@ -186,6 +186,26 @@ router.post('/attack-bot', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/pvp/poker-settle — settle poker winnings/losses
+router.post('/poker-settle', requireAuth, async (req, res) => {
+  const { delta, bet, outcome } = req.body;
+  if (typeof delta !== 'number' || Math.abs(delta) > 50000)
+    return res.status(400).json({ error: 'Invalid settlement amount' });
+  try {
+    if (delta > 0) {
+      await db.query('UPDATE characters SET credits=credits+$1 WHERE id=$2', [delta, req.character.id]);
+      if (['win','dealer_bust','blackjack'].includes(outcome)) {
+        await db.query('UPDATE characters SET respect=respect+2 WHERE id=$1', [req.character.id]);
+      }
+    } else if (delta < 0) {
+      await db.query('UPDATE characters SET credits=GREATEST(0,credits+$1) WHERE id=$2', [delta, req.character.id]);
+    }
+    res.json({ ok: true });
+  } catch(err) {
+    res.status(500).json({ error: 'Settlement failed' });
+  }
+});
+
 // POST /api/pvp/attack-player/:targetId — attack player directly from leaderboard
 router.post('/attack-player/:targetId', requireAuth, async (req, res) => {
   const { targetId } = req.params;

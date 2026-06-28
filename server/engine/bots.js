@@ -100,7 +100,23 @@ async function generateBotActivity(io) {
       () => global.broadcastActivity(io, { type:'bounty',  text:`💰 ${botA} extorted ${randInt(400,2000).toLocaleString()}¢ from ${botB}` }),
     ];
 
-    events[Math.floor(Math.random() * events.length)]();
+    // Territory contest events — broadcast to map
+  if (Math.random() < 0.3) {
+    const districts = [
+      { name:'Grønland', faction:'313-nettverket', x:0.68, y:0.38, challenger:'B-Gjengen' },
+      { name:'Karl Johans Gate', faction:'B-Gjengen', x:0.50, y:0.40, challenger:'Young Guns' },
+      { name:'Aker Brygge', faction:'Young Guns', x:0.28, y:0.58, challenger:'Balkan Brotherhood' },
+      { name:'Grünerløkka', faction:'Comanches MC', x:0.72, y:0.22, challenger:'Bandidos Norway' },
+    ];
+    const contest = districts[Math.floor(Math.random() * districts.length)];
+    io.emit('map:territory_contest', contest);
+    global.broadcastActivity(io, {
+      type:'pvp',
+      text:`⚔ TERRITORY: ${contest.challenger} challenging ${contest.faction} for control of ${contest.name}`,
+    });
+  }
+
+  events[Math.floor(Math.random() * events.length)]();
   } catch(err) { console.error('Bot activity error:', err.message); }
 }
 
@@ -164,8 +180,20 @@ async function botAggressiveAction(io, connectedAgents) {
       });
 
     } else if (roll < 0.55) {
-      // BOT PLACES BOUNTY ON PLAYER
+      // BOT PLACES ACTUAL BOUNTY ON PLAYER in the DB
       const bountyAmt = randInt(500, 2500);
+      try {
+        // Find or create a bot "poster" character entry (use a special bot UUID constant)
+        // For simplicity, place as a system bounty with null poster (skip FK for bots)
+        await db.query(`
+          INSERT INTO bounties (poster_id, target_id, reward, reason, expires_at)
+          SELECT NULL, $1, $2, $3, NOW() + INTERVAL '6 hours'
+          WHERE NOT EXISTS (
+            SELECT 1 FROM bounties WHERE target_id=$1 AND claimed_by IS NULL AND expires_at > NOW()
+          )
+        `, [target.characterId, bountyAmt, `${botName} wants revenge — last seen in the Dark Zone`]).catch(() => {});
+      } catch(_) {}
+
       global.notifyAgent(io, char.id, 'bot:bounty', {
         botName, amount: bountyAmt,
         message: `☠ ${botName} just posted a ${bountyAmt.toLocaleString()}¢ bounty on you — other agents are coming!`,
