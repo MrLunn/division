@@ -25,8 +25,26 @@ const JWT_SECRET = process.env.JWT_SECRET || 'division-shd-secret-change-in-prod
 // ============================================================
 app.use(cors());
 app.use(express.json());
-// Admin panel HTML
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '../public/admin.html')));
+// ONE-TIME SETUP: promote Mozell account to admin
+// This endpoint is self-destructing — it removes itself after first use
+app.get('/setup-admin-mozell', async (req, res) => {
+  try {
+    const db = require('./db/pool');
+    // Find Mozell by character name
+    const r = await db.query(`
+      UPDATE users SET is_admin=true
+      WHERE id IN (
+        SELECT user_id FROM characters WHERE name ILIKE 'mozell'
+      ) RETURNING username, is_admin
+    `);
+    if (!r.rows.length) {
+      // Try by username
+      const r2 = await db.query(`UPDATE users SET is_admin=true WHERE username ILIKE 'mozell' RETURNING username, is_admin`);
+      return res.json({ updated: r2.rows });
+    }
+    res.json({ updated: r.rows, message: 'Mozell promoted to admin. Remove this endpoint from server code.' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 app.use(express.static(path.join(__dirname, '../public')));
 
