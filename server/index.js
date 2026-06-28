@@ -25,6 +25,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'division-shd-secret-change-in-prod
 // ============================================================
 app.use(cors());
 app.use(express.json());
+// Admin panel HTML
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '../public/admin.html')));
+
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Attach io to request for use in routes
@@ -50,6 +53,7 @@ app.use('/api/jail',           require('./routes/jail'));
 app.use('/api/extortion',      require('./routes/extortion'));
 app.use('/api/druglab',        require('./routes/druglab'));
 app.use('/api/fightclub',      require('./routes/fightclub'));
+app.use('/api/admin',          require('./routes/admin'));
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'online', time: new Date() }));

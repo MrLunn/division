@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
   username      VARCHAR(32) UNIQUE NOT NULL,
   email         VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  is_admin      BOOLEAN DEFAULT FALSE,
   created_at    TIMESTAMPTZ DEFAULT NOW(),
   last_login    TIMESTAMPTZ,
   is_banned     BOOLEAN DEFAULT FALSE
@@ -440,6 +441,9 @@ async function init() {
     await client.query(`ALTER TABLE characters ADD COLUMN IF NOT EXISTS jail_until TIMESTAMPTZ`);
     await client.query(`ALTER TABLE clans ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT FALSE`);
     await client.query(`ALTER TABLE clans ADD COLUMN IF NOT EXISTS bot_gs INT DEFAULT 0`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE`);
+    // Auto-promote the first registered user to admin
+    await client.query(`UPDATE users SET is_admin=true WHERE id=(SELECT id FROM users ORDER BY created_at ASC LIMIT 1)`);
     // Drop global unique constraint on character names if it exists
     await client.query(`ALTER TABLE characters DROP CONSTRAINT IF EXISTS characters_name_key`).catch(() => {});
     await client.query(seedMissions);

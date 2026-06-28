@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SHD COMMAND — Admin Panel</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green:   #39ff14;
+    --amber:   #ffb000;
+    --red:     #ff2200;
+    --bg:      #000;
+    --bg2:     #050a05;
+    --bg3:     #0a100a;
+    --border:  rgba(57,255,20,0.15);
+    --border2: rgba(57,255,20,0.3);
+    --text:    #d0e8d0;
+    --muted:   rgba(57,255,20,0.4);
+    --font:    'Share Tech Mono', 'Courier New', monospace;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 12px; min-height: 100vh; }
+
+  /* TOPBAR */
+  #topbar { background: var(--bg2); border-bottom: 1px solid var(--border2); padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; }
+  #topbar h1 { font-size: 14px; letter-spacing: 6px; color: var(--green); text-shadow: 0 0 10px rgba(57,255,20,0.5); }
+  #topbar .meta { font-size: 10px; color: var(--muted); letter-spacing: 2px; }
+  #auth-bar { display: flex; gap: 10px; align-items: center; }
+  #auth-bar input { background: var(--bg3); border: 1px solid var(--border2); color: var(--green); padding: 6px 12px; font-family: var(--font); font-size: 11px; outline: none; width: 180px; }
+  #auth-bar input:focus { border-color: var(--green); box-shadow: 0 0 6px rgba(57,255,20,0.3); }
+
+  /* LAYOUT */
+  #layout { display: grid; grid-template-columns: 180px 1fr; height: calc(100vh - 45px); }
+  #sidebar { background: var(--bg2); border-right: 1px solid var(--border); padding: 12px 0; }
+  .nav-item { padding: 10px 20px; cursor: pointer; letter-spacing: 2px; font-size: 10px; color: var(--muted); border-left: 2px solid transparent; transition: all 0.15s; text-transform: uppercase; }
+  .nav-item:hover { color: var(--green); background: rgba(57,255,20,0.04); }
+  .nav-item.active { color: var(--green); border-left-color: var(--green); background: rgba(57,255,20,0.06); text-shadow: 0 0 4px rgba(57,255,20,0.4); }
+  .nav-sep { height: 1px; background: var(--border); margin: 8px 0; }
+  #content { overflow-y: auto; padding: 20px 24px; }
+
+  /* PANELS */
+  .panel { background: var(--bg2); border: 1px solid var(--border); margin-bottom: 16px; }
+  .panel-head { background: rgba(57,255,20,0.06); border-bottom: 1px solid var(--border); padding: 8px 16px; font-size: 9px; letter-spacing: 4px; color: var(--green); display: flex; align-items: center; justify-content: space-between; }
+  .panel-body { padding: 16px; }
+
+  /* STATS GRID */
+  .stats-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 12px; margin-bottom: 16px; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-top: 2px solid var(--green); padding: 12px 14px; }
+  .stat-card .label { font-size: 8px; letter-spacing: 3px; color: var(--muted); margin-bottom: 6px; }
+  .stat-card .val { font-size: 22px; color: var(--green); text-shadow: 0 0 8px rgba(57,255,20,0.4); }
+  .stat-card.amber .val { color: var(--amber); text-shadow: 0 0 8px rgba(255,176,0,0.3); border-top-color: var(--amber); }
+  .stat-card.red .val { color: var(--red); border-top-color: var(--red); }
+
+  /* TABLES */
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { text-align: left; padding: 6px 10px; font-size: 8px; letter-spacing: 3px; color: var(--muted); border-bottom: 1px solid var(--border); text-transform: uppercase; }
+  td { padding: 7px 10px; border-bottom: 1px solid rgba(57,255,20,0.05); vertical-align: middle; }
+  tr:hover td { background: rgba(57,255,20,0.03); }
+  .badge { display: inline-block; font-size: 9px; padding: 2px 7px; letter-spacing: 1px; }
+  .badge.admin { background: rgba(255,176,0,0.15); color: var(--amber); border: 1px solid var(--amber); }
+  .badge.banned { background: rgba(255,34,0,0.15); color: var(--red); border: 1px solid var(--red); }
+  .badge.jailed { background: rgba(255,34,0,0.1); color: var(--red); }
+  .badge.online { background: rgba(57,255,20,0.1); color: var(--green); }
+
+  /* BUTTONS */
+  button, .btn { background: transparent; border: 1px solid var(--border2); color: var(--green); padding: 5px 12px; font-family: var(--font); font-size: 10px; letter-spacing: 2px; cursor: pointer; text-transform: uppercase; transition: all 0.15s; clip-path: polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px)); }
+  button:hover, .btn:hover { background: rgba(57,255,20,0.1); border-color: var(--green); box-shadow: 0 0 8px rgba(57,255,20,0.2); }
+  button.danger { border-color: rgba(255,34,0,0.4); color: var(--red); }
+  button.danger:hover { background: rgba(255,34,0,0.1); border-color: var(--red); }
+  button.amber { border-color: rgba(255,176,0,0.4); color: var(--amber); }
+  button.amber:hover { background: rgba(255,176,0,0.1); }
+  button.primary { background: rgba(57,255,20,0.1); border-color: var(--green); }
+  button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* INPUTS */
+  input, select, textarea { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; font-family: var(--font); font-size: 11px; outline: none; width: 100%; }
+  input:focus, select:focus, textarea:focus { border-color: var(--green); box-shadow: 0 0 4px rgba(57,255,20,0.2); }
+  select option { background: var(--bg2); }
+  label { font-size: 9px; letter-spacing: 2px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+  .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .form-row.four { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .form-group { margin-bottom: 10px; }
+
+  /* INLINE EDIT */
+  .editable { cursor: pointer; border-bottom: 1px dashed var(--border2); }
+  .editable:hover { color: var(--green); }
+  input.inline-edit { width: 80px; padding: 2px 6px; font-size: 11px; display: inline; }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast-item { background: var(--bg2); border: 1px solid var(--green); border-left: 3px solid var(--green); padding: 10px 16px; font-size: 11px; color: var(--green); letter-spacing: 1px; animation: slideIn 0.3s ease; max-width: 320px; }
+  .toast-item.err { border-color: var(--red); color: var(--red); }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* SEARCH */
+  .search-bar { display: flex; gap: 10px; margin-bottom: 14px; }
+  .search-bar input { width: 280px; }
+
+  /* MODAL */
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,4,0,0.9); z-index: 100; align-items: center; justify-content: center; }
+  .modal.open { display: flex; }
+  .modal-box { background: var(--bg2); border: 1px solid var(--green); border-top: 2px solid var(--green); padding: 24px; min-width: 500px; max-width: 700px; max-height: 90vh; overflow-y: auto; }
+  .modal-title { font-size: 10px; letter-spacing: 4px; color: var(--green); margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+
+  /* FEED */
+  .feed-item { padding: 5px 0; border-bottom: 1px solid rgba(57,255,20,0.05); }
+  .feed-item .ts { color: var(--muted); font-size: 9px; margin-right: 8px; }
+  .feed-item.pvp { color: var(--red); }
+  .feed-item.exotic { color: var(--amber); }
+  .feed-item.complete { color: var(--green); }
+
+  /* SCAN LINE */
+  #content::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--green), transparent); opacity: 0.3; animation: scan 3s linear infinite; pointer-events: none; z-index: 50; }
+  @keyframes scan { 0% { transform: translateY(0); } 100% { transform: translateY(100vh); } }
+
+  #login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; gap: 20px; }
+  #login-screen h2 { font-size: 11px; letter-spacing: 6px; color: var(--green); }
+  #login-screen .login-box { background: var(--bg2); border: 1px solid var(--border2); border-top: 2px solid var(--green); padding: 32px; min-width: 320px; }
+  #login-screen .login-box input { margin-bottom: 12px; }
+  #login-screen .err { color: var(--red); font-size: 10px; min-height: 16px; }
+  #game-screen { display: none; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <h2>[ SHD COMMAND — ADMIN ACCESS ]</h2>
+  <div class="login-box">
+    <div style="font-size:9px;letter-spacing:3px;color:var(--muted);margin-bottom:16px">AUTHENTICATE OPERATOR</div>
+    <label>EMAIL</label>
+    <input type="email" id="login-email" placeholder="operator@shd.gov" autocomplete="off">
+    <label>PASSWORD</label>
+    <input type="password" id="login-pass" placeholder="••••••••">
+    <div class="err" id="login-err"></div>
+    <button class="primary" style="width:100%;margin-top:8px" onclick="adminLogin()">[ AUTHENTICATE ]</button>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="game-screen">
+  <div id="topbar">
+    <h1>⚡ SHD COMMAND — ADMIN</h1>
+    <div class="meta" id="admin-meta">LOADING...</div>
+    <button class="danger" onclick="adminLogout()">[ LOGOUT ]</button>
+  </div>
+  <div id="layout">
+    <div id="sidebar">
+      <div class="nav-item active" onclick="showSection('dashboard')">◈ DASHBOARD</div>
+      <div class="nav-item" onclick="showSection('players')">☰ PLAYERS</div>
+      <div class="nav-item" onclick="showSection('missions')">◆ MISSIONS</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" onclick="showSection('custody')">🚔 CUSTODY</div>
+      <div class="nav-item" onclick="showSection('bounties')">☠ BOUNTIES</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" onclick="showSection('feed')">⚡ ACTIVITY FEED</div>
+      <div class="nav-item" onclick="showSection('broadcast')">📡 BROADCAST</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" onclick="showSection('tools')">⚙ TOOLS</div>
+    </div>
+    <div id="content">
+      <div id="section-dashboard"></div>
+      <div id="section-players" style="display:none"></div>
+      <div id="section-missions" style="display:none"></div>
+      <div id="section-custody" style="display:none"></div>
+      <div id="section-bounties" style="display:none"></div>
+      <div id="section-feed" style="display:none"></div>
+      <div id="section-broadcast" style="display:none"></div>
+      <div id="section-tools" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT PLAYER MODAL -->
+<div class="modal" id="edit-modal">
+  <div class="modal-box">
+    <div class="modal-title">// EDIT AGENT — <span id="edit-modal-name"></span></div>
+    <input type="hidden" id="edit-char-id">
+    <div class="form-row four">
+      <div class="form-group"><label>LEVEL</label><input type="number" id="edit-level" min="1" max="30"></div>
+      <div class="form-group"><label>XP</label><input type="number" id="edit-xp" min="0"></div>
+      <div class="form-group"><label>CREDITS</label><input type="number" id="edit-credits" min="0"></div>
+      <div class="form-group"><label>RESPECT</label><input type="number" id="edit-respect" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>GEAR SCORE</label><input type="number" id="edit-gs" min="0" max="500"></div>
+      <div class="form-group"><label>JAILED</label>
+        <select id="edit-jailed"><option value="false">No</option><option value="true">Yes (30 min)</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>GIVE CREDITS (add to current)</label>
+      <div style="display:flex;gap:8px">
+        <input type="number" id="give-credits-amount" placeholder="e.g. 10000">
+        <button onclick="giveCredits()" class="amber" style="white-space:nowrap;width:auto;padding:6px 14px">GRANT</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="savePlayer()">[ SAVE CHANGES ]</button>
+      <button class="danger" onclick="closeModal('edit-modal')">[ CANCEL ]</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MISSION MODAL -->
+<div class="modal" id="mission-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="mission-modal-title">// NEW MISSION</div>
+    <input type="hidden" id="mission-id">
+    <div class="form-row">
+      <div class="form-group"><label>NAME</label><input type="text" id="m-name" placeholder="Karl Johans Gate"></div>
+      <div class="form-group"><label>TYPE</label>
+        <select id="m-type">
+          <option value="mission">Mission</option><option value="street_fight">Street Fight</option>
+          <option value="expedition">Expedition</option><option value="stronghold">Stronghold</option>
+          <option value="dark_zone">Dark Zone</option><option value="raid">Raid</option>
+          <option value="bounty">Bounty</option><option value="base_raid">Base Raid</option>
+          <option value="daily">Daily</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>DESCRIPTION</label><textarea id="m-desc" rows="3" placeholder="Mission briefing..."></textarea></div>
+    <div class="form-row four">
+      <div class="form-group"><label>DIFFICULTY</label>
+        <select id="m-diff"><option value="normal">Normal</option><option value="hard">Hard</option><option value="challenging">Challenging</option><option value="heroic">Heroic</option></select>
+      </div>
+      <div class="form-group"><label>MIN GS</label><input type="number" id="m-mings" value="0" min="0" max="500"></div>
+      <div class="form-group"><label>XP REWARD</label><input type="number" id="m-xp" value="2000" min="0"></div>
+      <div class="form-group"><label>CREDIT REWARD</label><input type="number" id="m-credits" value="1000" min="0"></div>
+    </div>
+    <div class="form-row four">
+      <div class="form-group"><label>MAP X (0–1)</label><input type="number" id="m-x" value="0.5" min="0" max="1" step="0.01"></div>
+      <div class="form-group"><label>MAP Y (0–1)</label><input type="number" id="m-y" value="0.5" min="0" max="1" step="0.01"></div>
+      <div class="form-group"><label>LOOT ROLLS</label><input type="number" id="m-rolls" value="2" min="1" max="6"></div>
+      <div class="form-group"><label>LOOT BONUS RARITY</label>
+        <select id="m-rarity"><option value="">None</option><option value="rare">Rare</option><option value="epic">Epic</option><option value="named">Named</option><option value="exotic">Exotic</option></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="saveMission()">[ SAVE MISSION ]</button>
+      <button class="danger" onclick="closeModal('mission-modal')">[ CANCEL ]</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let TOKEN = localStorage.getItem('admin_token') || '';
+let players = [], missions = [];
+
+// ── API ──────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const r = await fetch('/api' + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Request failed');
+  return d;
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+async function adminLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-err');
+  errEl.textContent = '';
+  try {
+    const d = await fetch('/api/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password: pass }),
+    }).then(r => r.json());
+    if (!d.token) { errEl.textContent = d.error || 'Login failed'; return; }
+    // Verify admin
+    const me = await fetch('/api/admin/stats', {
+      headers: { 'Authorization': 'Bearer ' + d.token }
+    });
+    if (me.status === 403) { errEl.textContent = 'Account does not have admin access'; return; }
+    TOKEN = d.token;
+    localStorage.setItem('admin_token', TOKEN);
+    showAdmin(d);
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+async function showAdmin(loginData) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'block';
+  const meta = loginData?.character?.name ? `OPERATOR: ${loginData.character.name}` : 'OPERATOR: ADMIN';
+  document.getElementById('admin-meta').textContent = meta;
+  showSection('dashboard');
+}
+
+function adminLogout() {
+  TOKEN = ''; localStorage.removeItem('admin_token');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('game-screen').style.display = 'none';
+}
+
+// Auto-login if token saved
+if (TOKEN) showAdmin({});
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+const SECTIONS = ['dashboard','players','missions','custody','bounties','feed','broadcast','tools'];
+function showSection(name) {
+  SECTIONS.forEach(s => {
+    document.getElementById('section-' + s).style.display = s === name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.textContent.toLowerCase().includes(name));
+  });
+  const loaders = { dashboard, players: loadPlayers, missions: loadMissions, custody: loadCustody, bounties: loadBounties, feed: loadFeed, broadcast: renderBroadcast, tools: renderTools };
+  loaders[name]?.();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, err = false) {
+  const el = document.createElement('div');
+  el.className = 'toast-item' + (err ? ' err' : '');
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function dashboard() {
+  const el = document.getElementById('section-dashboard');
+  el.innerHTML = '<div style="color:var(--muted);letter-spacing:3px">LOADING...</div>';
+  try {
+    const d = await api('GET', '/admin/stats');
+    el.innerHTML = `
+      <div style="font-size:9px;letter-spacing:4px;color:var(--muted);margin-bottom:16px">// OPERATIONAL STATUS</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="label">TOTAL AGENTS</div><div class="val">${d.players.total}</div></div>
+        <div class="stat-card"><div class="label">AVG GEAR SCORE</div><div class="val">${d.players.avg_gs || 0}</div></div>
+        <div class="stat-card amber"><div class="label">TOP GS</div><div class="val">${d.players.max_gs || 0}</div></div>
+        <div class="stat-card"><div class="label">MISSIONS DONE</div><div class="val">${Number(d.missionsDone).toLocaleString()}</div></div>
+        <div class="stat-card amber"><div class="label">ACTIVE BOUNTIES</div><div class="val">${d.activeBounties}</div></div>
+        <div class="stat-card red"><div class="label">IN CUSTODY</div><div class="val">${d.jailed}</div></div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="stat-card"><div class="label">TOTAL CREDITS IN GAME</div><div class="val" style="font-size:14px">${Number(d.players.total_credits||0).toLocaleString()} ¢</div></div>
+        <div class="stat-card"><div class="label">ACTIVE CLANS</div><div class="val">${d.clans}</div></div>
+        <div class="stat-card"><div class="label">FEED EVENTS (24H)</div><div class="val">${d.feedLast24h}</div></div>
+      </div>
+    `;
+  } catch(e) { el.innerHTML = `<div style="color:var(--red)">${e.message}</div>`; }
+}
+
+// ── Players ───────────────────────────────────────────────────────────────────
+let playerFilter = '';
+async function loadPlayers() {
+  const el = document.getElementById('section-players');
+  el.innerHTML = '<div style="color:var(--muted);letter-spacing:3px">LOADING...</div>';
+  try {
+    const d = await api('GET', '/admin/players');
+    players = d.players;
+    renderPlayers();
+  } catch(e) { el.innerHTML = `<div style="color:var(--red)">${e.message}</div>`; }
+}
+
+function renderPlayers() {
+  const el = document.getElementById('section-players');
+  const filtered = playerFilter
+    ? players.filter(p => p.name?.toLowerCase().includes(playerFilter) || p.email?.toLowerCase().includes(playerFilter))
+    : players;
+
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:9px;letter-spacing:4px;color:var(--muted)">// AGENT ROSTER (${filtered.length})</div>
+      <div class="search-bar">
+        <input type="text" placeholder="Search name or email..." value="${playerFilter}" oninput="playerFilter=this.value;renderPlayers()" style="width:240px">
+      </div>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr>
+          <th>AGENT NAME</th><th>EMAIL</th><th>LV</th><th>GS</th><th>CREDITS</th><th>RESPECT</th><th>PVP</th><th>MISSIONS</th><th>STATUS</th><th>ACTIONS</th>
+        </tr></thead>
+        <tbody>
+          ${filtered.map(p => `
+            <tr>
+              <td><strong style="color:var(--green)">${p.name || '—'}</strong></td>
+              <td style="color:var(--muted);font-size:10px">${p.email}</td>
+              <td>${p.level || 0}</td>
+              <td style="color:var(--amber)">${p.gear_score || 0}</td>
+              <td>${Number(p.credits||0).toLocaleString()} ¢</td>
+              <td style="color:#af7ac5">★ ${p.respect || 0}</td>
+              <td>${p.pvp_kills || 0}</td>
+              <td>${p.missions_done || 0}</td>
+              <td>
+                ${p.is_admin ? '<span class="badge admin">ADMIN</span> ' : ''}
+                ${p.is_banned ? '<span class="badge banned">BANNED</span> ' : ''}
+                ${p.is_jailed ? '<span class="badge jailed">JAILED</span>' : ''}
+              </td>
+              <td style="white-space:nowrap">
+                <button onclick='openEditPlayer(${JSON.stringify(p)})'>EDIT</button>
+                ${p.is_jailed ? `<button class="amber" onclick="releasePlayer('${p.char_id}')">RELEASE</button>` : `<button class="danger" onclick="arrestPlayer('${p.char_id}')">ARREST</button>`}
+                ${!p.is_banned ? `<button class="danger" onclick="banPlayer('${p.user_id}',true)">BAN</button>` : `<button class="amber" onclick="banPlayer('${p.user_id}',false)">UNBAN</button>`}
+                ${!p.is_admin ? `<button class="amber" onclick="promoteAdmin('${p.user_id}')">MAKE ADMIN</button>` : ''}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function openEditPlayer(p) {
+  document.getElementById('edit-modal-name').textContent = p.name;
+  document.getElementById('edit-char-id').value = p.char_id;
+  document.getElementById('edit-level').value = p.level || 1;
+  document.getElementById('edit-xp').value = p.xp || 0;
+  document.getElementById('edit-credits').value = p.credits || 0;
+  document.getElementById('edit-respect').value = p.respect || 0;
+  document.getElementById('edit-gs').value = p.gear_score || 0;
+  document.getElementById('edit-jailed').value = p.is_jailed ? 'true' : 'false';
+  document.getElementById('give-credits-amount').value = '';
+  document.getElementById('edit-modal').classList.add('open');
+  window._editUserId = p.user_id;
+}
+
+async function savePlayer() {
+  const id = document.getElementById('edit-char-id').value;
+  try {
+    await api('PATCH', '/admin/players/' + id, {
+      level:      parseInt(document.getElementById('edit-level').value),
+      xp:         parseInt(document.getElementById('edit-xp').value),
+      credits:    parseInt(document.getElementById('edit-credits').value),
+      respect:    parseInt(document.getElementById('edit-respect').value),
+      gear_score: parseInt(document.getElementById('edit-gs').value),
+      is_jailed:  document.getElementById('edit-jailed').value === 'true',
+    });
+    toast('Agent updated'); closeModal('edit-modal'); loadPlayers();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function giveCredits() {
+  const id = document.getElementById('edit-char-id').value;
+  const amount = parseInt(document.getElementById('give-credits-amount').value);
+  if (!amount || amount <= 0) { toast('Enter a valid amount', true); return; }
+  try {
+    await api('POST', '/admin/give-credits/' + id, { amount });
+    toast(`Granted ${amount.toLocaleString()}¢ to agent`);
+    document.getElementById('give-credits-amount').value = '';
+  } catch(e) { toast(e.message, true); }
+}
+
+async function banPlayer(userId, ban) {
+  if (!confirm(`${ban ? 'Ban' : 'Unban'} this player?`)) return;
+  await api('POST', '/admin/players/' + userId + '/ban', { banned: ban });
+  toast(ban ? 'Player banned' : 'Player unbanned'); loadPlayers();
+}
+
+async function arrestPlayer(charId) {
+  await api('POST', '/admin/arrest/' + charId, {});
+  toast('Agent arrested'); loadPlayers();
+}
+
+async function releasePlayer(charId) {
+  await api('POST', '/admin/release/' + charId, {});
+  toast('Agent released from custody'); loadPlayers();
+}
+
+async function promoteAdmin(userId) {
+  if (!confirm('Promote to admin?')) return;
+  await api('POST', '/admin/players/' + userId + '/promote', {});
+  toast('Player promoted to admin'); loadPlayers();
+}
+
+// ── Missions ──────────────────────────────────────────────────────────────────
+async function loadMissions() {
+  const el = document.getElementById('section-missions');
+  el.innerHTML = '<div style="color:var(--muted);letter-spacing:3px">LOADING...</div>';
+  const d = await api('GET', '/admin/missions');
+  missions = d.missions;
+  renderMissions();
+}
+
+function renderMissions() {
+  const el = document.getElementById('section-missions');
+  const diffColor = { normal:'var(--green)', hard:'var(--amber)', challenging:'#ff8c00', heroic:'var(--red)' };
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:9px;letter-spacing:4px;color:var(--muted)">// MISSION DATABASE (${missions.length})</div>
+      <button class="primary" onclick="openMissionModal()">[ + NEW MISSION ]</button>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>NAME</th><th>TYPE</th><th>DIFFICULTY</th><th>MIN GS</th><th>XP</th><th>CREDITS</th><th>LOOT</th><th>ACTIONS</th></tr></thead>
+        <tbody>
+          ${missions.map(m => `
+            <tr>
+              <td style="color:var(--green)">${m.name}</td>
+              <td style="font-size:10px;color:var(--muted)">${m.type?.toUpperCase()}</td>
+              <td style="color:${diffColor[m.difficulty]||'var(--text)'}">${m.difficulty?.toUpperCase()}</td>
+              <td>${m.min_gs || 0}</td>
+              <td>${Number(m.xp_reward||0).toLocaleString()}</td>
+              <td>${Number(m.credit_reward||0).toLocaleString()} ¢</td>
+              <td style="font-size:10px">${m.loot_rolls}× ${m.loot_bonus_rarity||'any'}</td>
+              <td style="white-space:nowrap">
+                <button onclick='openMissionModal(${JSON.stringify(m)})'>EDIT</button>
+                <button class="danger" onclick="deleteMission('${m.id}','${m.name}')">DEL</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function openMissionModal(m = null) {
+  document.getElementById('mission-modal-title').textContent = m ? `// EDIT MISSION — ${m.name}` : '// NEW MISSION';
+  document.getElementById('mission-id').value = m?.id || '';
+  document.getElementById('m-name').value = m?.name || '';
+  document.getElementById('m-desc').value = m?.description || '';
+  document.getElementById('m-type').value = m?.type || 'mission';
+  document.getElementById('m-diff').value = m?.difficulty || 'normal';
+  document.getElementById('m-mings').value = m?.min_gs || 0;
+  document.getElementById('m-xp').value = m?.xp_reward || 2000;
+  document.getElementById('m-credits').value = m?.credit_reward || 1000;
+  document.getElementById('m-x').value = m?.map_x || 0.5;
+  document.getElementById('m-y').value = m?.map_y || 0.5;
+  document.getElementById('m-rolls').value = m?.loot_rolls || 2;
+  document.getElementById('m-rarity').value = m?.loot_bonus_rarity || '';
+  document.getElementById('mission-modal').classList.add('open');
+}
+
+async function saveMission() {
+  const id = document.getElementById('mission-id').value;
+  const body = {
+    name: document.getElementById('m-name').value,
+    description: document.getElementById('m-desc').value,
+    type: document.getElementById('m-type').value,
+    difficulty: document.getElementById('m-diff').value,
+    min_gs: parseInt(document.getElementById('m-mings').value),
+    xp_reward: parseInt(document.getElementById('m-xp').value),
+    credit_reward: parseInt(document.getElementById('m-credits').value),
+    map_x: parseFloat(document.getElementById('m-x').value),
+    map_y: parseFloat(document.getElementById('m-y').value),
+    loot_rolls: parseInt(document.getElementById('m-rolls').value),
+    loot_bonus_rarity: document.getElementById('m-rarity').value || null,
+  };
+  try {
+    if (id) await api('PATCH', '/admin/missions/' + id, body);
+    else await api('POST', '/admin/missions', body);
+    toast(id ? 'Mission updated' : 'Mission created');
+    closeModal('mission-modal'); loadMissions();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deleteMission(id, name) {
+  if (!confirm(`Delete mission "${name}"?`)) return;
+  await api('DELETE', '/admin/missions/' + id);
+  toast('Mission deleted'); loadMissions();
+}
+
+// ── Custody ───────────────────────────────────────────────────────────────────
+async function loadCustody() {
+  const el = document.getElementById('section-custody');
+  const d  = await api('GET', '/admin/players');
+  const jailed = d.players.filter(p => p.is_jailed);
+  el.innerHTML = `
+    <div style="font-size:9px;letter-spacing:4px;color:var(--muted);margin-bottom:14px">// CUSTODY ROSTER (${jailed.length} agents)</div>
+    ${!jailed.length ? '<div style="color:var(--muted);padding:20px">No agents in custody</div>' : `
+    <div class="panel"><table>
+      <thead><tr><th>AGENT</th><th>GS</th><th>JAIL UNTIL</th><th>ACTIONS</th></tr></thead>
+      <tbody>${jailed.map(p => `
+        <tr>
+          <td style="color:var(--red)">${p.name}</td>
+          <td>${p.gear_score}</td>
+          <td>${p.jail_until ? new Date(p.jail_until).toLocaleTimeString() : '—'}</td>
+          <td><button class="amber" onclick="releasePlayer('${p.char_id}');showSection('custody')">RELEASE</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`}`;
+}
+
+// ── Bounties ───────────────────────────────────────────────────────────────────
+async function loadBounties() {
+  const el = document.getElementById('section-bounties');
+  const d  = await api('GET', '/admin/bounties');
+  el.innerHTML = `
+    <div style="font-size:9px;letter-spacing:4px;color:var(--muted);margin-bottom:14px">// BOUNTY BOARD</div>
+    <div class="panel"><table>
+      <thead><tr><th>TARGET</th><th>POSTER</th><th>REWARD</th><th>STATUS</th><th>EXPIRES</th><th>ACTIONS</th></tr></thead>
+      <tbody>${d.bounties.map(b => `
+        <tr>
+          <td style="color:var(--red)">☠ ${b.target_name || '?'}</td>
+          <td style="color:var(--muted)">${b.poster_name || 'BOT'}</td>
+          <td style="color:var(--amber)">${Number(b.reward).toLocaleString()} ¢</td>
+          <td>${b.claimed_by ? '<span class="badge online">CLAIMED</span>' : '<span class="badge jailed">ACTIVE</span>'}</td>
+          <td style="font-size:10px">${new Date(b.expires_at).toLocaleString()}</td>
+          <td><button class="danger" onclick="deleteBounty('${b.id}')">REMOVE</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+async function deleteBounty(id) {
+  await api('DELETE', '/admin/bounties/' + id);
+  toast('Bounty removed'); loadBounties();
+}
+
+// ── Feed ──────────────────────────────────────────────────────────────────────
+async function loadFeed() {
+  const el = document.getElementById('section-feed');
+  const d  = await api('GET', '/admin/feed');
+  el.innerHTML = `
+    <div style="font-size:9px;letter-spacing:4px;color:var(--muted);margin-bottom:14px">// ACTIVITY FEED (last 100)</div>
+    <div class="panel"><div class="panel-body" style="max-height:600px;overflow-y:auto">
+      ${d.feed.map(f => {
+        const cls = f.type === 'pvp' || f.type === 'arrest' ? 'pvp' : f.type === 'exotic_drop' ? 'exotic' : 'complete';
+        const ts  = new Date(f.occurred_at).toLocaleTimeString();
+        const text = f.detail || f.text || '';
+        return `<div class="feed-item ${cls}"><span class="ts">${ts}</span>${f.actor_name ? f.actor_name + ': ' : ''}${text}</div>`;
+      }).join('')}
+    </div></div>`;
+}
+
+// ── Broadcast ─────────────────────────────────────────────────────────────────
+function renderBroadcast() {
+  const el = document.getElementById('section-broadcast');
+  el.innerHTML = `
+    <div style="font-size:9px;letter-spacing:4px;color:var(--muted);margin-bottom:14px">// SERVER BROADCAST</div>
+    <div class="panel"><div class="panel-body">
+      <div class="form-group"><label>MESSAGE (sent to all players via activity feed)</label>
+        <textarea id="bc-msg" rows="3" placeholder="SHD Command to all agents..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>TYPE</label>
+          <select id="bc-type">
+            <option value="intel">Intel</option><option value="pvp">PvP Alert</option>
+            <option value="cache_spawn">Cache Event</option><option value="complete">Announcement</option>
+          </select>
+        </div>
+      </div>
+      <button class="primary" onclick="sendBroadcast()">[ BROADCAST TO ALL AGENTS ]</button>
+    </div></div>
+    <div class="panel" style="margin-top:16px"><div class="panel-body">
+      <div style="font-size:9px;letter-spacing:3px;color:var(--muted);margin-bottom:12px">QUICK ACTIONS</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="triggerCacheEvent()">[ ⚡ TRIGGER CACHE EVENT ]</button>
+        <button class="amber" onclick="broadcastMaintenance()">[ ⚠ MAINTENANCE WARNING ]</button>
+      </div>
+    </div></div>`;
+}
+
+async function sendBroadcast() {
+  const msg  = document.getElementById('bc-msg').value.trim();
+  const type = document.getElementById('bc-type').value;
+  if (!msg) { toast('Enter a message', true); return; }
+  await api('POST', '/admin/broadcast', { message: msg, type });
+  toast('Broadcast sent to all players');
+  document.getElementById('bc-msg').value = '';
+}
+
+async function triggerCacheEvent() {
+  await api('POST', '/admin/cache-event', {});
+  toast('⚡ Cache event triggered on the map');
+}
+
+async function broadcastMaintenance() {
+  await api('POST', '/admin/broadcast', { message: 'Server maintenance in 10 minutes. Operations will resume shortly.', type: 'intel' });
+  toast('Maintenance warning sent');
+}
+
+// ── Tools ─────────────────────────────────────────────────────────────────────
+function renderTools() {
+  const el = document.getElementById('section-tools');
+  el.innerHTML = `
+    <div style="font-size:9px;letter-spacing:4px;color:var(--muted);margin-bottom:14px">// ADMIN TOOLS</div>
+    <div class="panel"><div class="panel-body">
+      <div style="font-size:9px;letter-spacing:3px;color:var(--muted);margin-bottom:12px">ECONOMY</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+        <button onclick="giveAllCredits(1000)" class="amber">[ +1,000¢ TO ALL ]</button>
+        <button onclick="giveAllCredits(5000)" class="amber">[ +5,000¢ TO ALL ]</button>
+        <button onclick="giveAllCredits(10000)" class="amber">[ +10,000¢ TO ALL ]</button>
+      </div>
+      <div style="font-size:9px;letter-spacing:3px;color:var(--muted);margin-bottom:12px">WORLD EVENTS</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+        <button onclick="triggerCacheEvent()">[ SPAWN CACHE EVENT ]</button>
+      </div>
+      <div style="font-size:9px;letter-spacing:3px;color:var(--muted);margin-bottom:12px">INFORMATION</div>
+      <div style="line-height:2;color:var(--muted);font-size:11px">
+        <div>Game URL: <a href="/" style="color:var(--green)" target="_blank">division-814p.onrender.com</a></div>
+        <div>GitHub: <a href="https://github.com/MrLunn/division" style="color:var(--green)" target="_blank">MrLunn/division</a></div>
+        <div>Stack: Node.js · PostgreSQL · Socket.io · HTML5 Canvas</div>
+      </div>
+    </div></div>`;
+}
+
+async function giveAllCredits(amount) {
+  if (!confirm(`Give ${amount.toLocaleString()}¢ to ALL players?`)) return;
+  const d = await api('GET', '/admin/players');
+  let count = 0;
+  for (const p of d.players) {
+    if (p.char_id) {
+      await api('POST', '/admin/give-credits/' + p.char_id, { amount });
+      count++;
+    }
+  }
+  toast(`Granted ${amount.toLocaleString()}¢ to ${count} agents`);
+  await api('POST', '/admin/broadcast', { message: `SHD Command has granted all agents ${amount.toLocaleString()}¢. Stay frosty.`, type: 'complete' });
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open')); });
+</script>
+</body>
+</html>
