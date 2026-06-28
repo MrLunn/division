@@ -2,7 +2,7 @@ const router = require('express').Router();
 const db     = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 
-// GET /api/extortion — my active demands (sent and received)
+// GET /api/extortion — my active demands (sent and received) + bot targets
 router.get('/', requireAuth, async (req, res) => {
   try {
     const sent = await db.query(`
@@ -17,8 +17,44 @@ router.get('/', requireAuth, async (req, res) => {
       WHERE e.target_id=$1 AND e.deadline > NOW() AND NOT e.paid
       ORDER BY e.created_at DESC
     `, [req.character.id]);
-    res.json({ sent: sent.rows, received: received.rows });
+
+    // Inject bot targets that can be extorted (weaker than player)
+    const gs = req.character.gear_score || 100;
+    const BOT_TARGETS = [
+      { id:'bot-ext-1', name:'TacticalHans',  gear_score:175, level:9,  isBot:true, suggestedAmount: Math.floor(gs * 0.08) },
+      { id:'bot-ext-2', name:'Arctic_Fox',    gear_score:220, level:12, isBot:true, suggestedAmount: Math.floor(gs * 0.10) },
+      { id:'bot-ext-3', name:'ShadowKong',    gear_score:260, level:15, isBot:true, suggestedAmount: Math.floor(gs * 0.12) },
+    ].filter(b => b.gear_score < gs * 1.5);
+
+    res.json({ sent: sent.rows, received: received.rows, botTargets: BOT_TARGETS });
   } catch(err) { res.status(500).json({ error:'Failed to load extortions' }); }
+});
+
+// POST /api/extortion/bot/:botId — extort a bot (instant payout with risk)
+router.post('/bot/:botId', requireAuth, async (req, res) => {
+  const { amount } = req.body;
+  const BOT_DATA = {
+    'bot-ext-1':{ name:'TacticalHans', gs:175 },
+    'bot-ext-2':{ name:'Arctic_Fox',   gs:220 },
+    'bot-ext-3':{ name:'ShadowKong',   gs:260 },
+  };
+  const bot = BOT_DATA[req.params.botId];
+  if (!bot) return res.status(404).json({ error:'Bot not found' });
+  if (!amount || amount < 200) return res.status(400).json({ error:'Minimum 200¢' });
+  if (bot.gs > req.character.gear_score * 1.5) return res.status(400).json({ error:'Target too powerful' });
+
+  // 70% success rate for bots
+  const success = Math.random() < 0.70;
+  if (success) {
+    await db.query('UPDATE characters SET credits=credits+$1,respect=respect+20 WHERE id=$2',[amount, req.character.id]);
+    global.broadcastActivity(req.io, { type:'extortion', text:`💰 ${req.character.name} extorted ${amount.toLocaleString()}¢ from ${bot.name}` });
+    res.json({ success:true, message:`${bot.name} paid up — +${amount.toLocaleString()}¢ · +20★`, amount });
+  } else {
+    const lost = Math.floor(amount * 0.5);
+    await db.query('UPDATE characters SET credits=GREATEST(0,credits-$1),respect=GREATEST(0,respect-10) WHERE id=$2',[lost, req.character.id]);
+    global.broadcastActivity(req.io, { type:'pvp', text:`⚠ ${req.character.name} tried to extort ${bot.name} and got robbed instead — lost ${lost.toLocaleString()}¢` });
+    res.json({ success:false, message:`${bot.name} refused and counter-attacked — lost ${lost.toLocaleString()}¢ · -10★`, lost });
+  }
 });
 
 // POST /api/extortion — place a demand

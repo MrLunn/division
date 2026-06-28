@@ -1117,3 +1117,162 @@ html, body {
   border-bottom-color: var(--socom-green) !important;
   text-shadow: 0 0 6px rgba(57,255,20,0.4);
 }
+
+/* ============================================================
+   SOCOM — UNIVERSAL PAGE STYLING
+   Every view gets the treatment
+   ============================================================ */
+
+/* All panel-titles become SOCOM style */
+.panel-title {
+  font-size: 9px !important;
+  letter-spacing: 4px !important;
+  color: var(--socom-green) !important;
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(57,255,20,0.15) !important;
+  margin-bottom: 10px;
+  font-family: var(--font-hud) !important;
+  font-weight: 400 !important;
+}
+.panel-title::before { content: '[ '; opacity: 0.4; }
+.panel-title::after  { content: ' ]'; opacity: 0.4; }
+
+/* Leaderboard rows */
+.lb-row {
+  border-left: 1px solid rgba(57,255,20,0.15) !important;
+  transition: border-color 0.15s, background 0.15s;
+}
+.lb-row:hover { background: var(--socom-green-dim) !important; border-left-color: var(--socom-green) !important; }
+.lb-row.you { background: rgba(57,255,20,0.05) !important; border-left: 2px solid var(--socom-green) !important; }
+.lb-rank.gold   { color: var(--socom-amber) !important; text-shadow: 0 0 6px rgba(255,176,0,0.5); }
+.lb-rank.silver { color: #ccc !important; }
+.lb-rank.bronze { color: #cd7f32 !important; }
+
+/* Buttons — primary becomes SOCOM */
+.btn-primary {
+  background: transparent !important;
+  border: 1px solid var(--socom-green) !important;
+  color: var(--socom-green) !important;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px));
+}
+.btn-primary:hover { background: var(--socom-green-mid) !important; box-shadow: 0 0 8px rgba(57,255,20,0.3); }
+
+/* Secondary button */
+.btn-secondary {
+  background: transparent !important;
+  border: 1px solid rgba(57,255,20,0.3) !important;
+  color: rgba(57,255,20,0.7) !important;
+}
+.btn-secondary:hover { border-color: var(--socom-green) !important; color: var(--socom-green) !important; }
+
+/* Danger button — stays red but SOCOM-clipped */
+.btn-danger {
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px));
+  border-color: var(--socom-red) !important;
+}
+
+/* Inputs — SOCOM green border on focus */
+input[type="text"]:focus, input[type="number"]:focus {
+  border-color: var(--socom-green) !important;
+  box-shadow: 0 0 6px rgba(57,255,20,0.2) !important;
+  outline: none;
+}
+
+/* Mission list items — SOCOM brief style */
+.mission-list-item {
+  background: rgba(0,4,0,0.4) !important;
+  border: 1px solid rgba(57,255,20,0.12) !important;
+  border-left: 2px solid rgba(57,255,20,0.4) !important;
+  padding: 10px 12px !important;
+}
+.mission-list-item:hover { border-left-color: var(--socom-green) !important; background: var(--socom-green-dim) !important; }
+.mli-name { color: var(--socom-green) !important; font-family: var(--font-hud) !important; letter-spacing: 1px; }
+.mli-type { color: rgba(57,255,20,0.5) !important; font-size: 9px !important; letter-spacing: 2px; }
+
+/* Gear slots — phosphor tint on hover */
+.gear-slot { border-color: rgba(57,255,20,0.15) !important; }
+.gear-slot:hover { border-color: rgba(57,255,20,0.5) !important; box-shadow: 0 0 8px rgba(57,255,20,0.1) !important; }
+
+/* Stash items */
+.si-row { border-color: rgba(57,255,20,0.1) !important; }
+.si-row:hover { background: var(--socom-green-dim) !important; }
+
+/* Combat log full SOCOM */
+.log-success { color: var(--socom-green) !important; }
+.log-fail    { color: var(--socom-red) !important; }
+.log-hit     { color: rgba(57,255,20,0.6) !important; }
+
+/* lb-my-rank */
+.lb-my-rank {
+  font-family: var(--font-hud);
+  font-size: 10px;
+  color: var(--socom-green);
+  letter-spacing: 3px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(57,255,20,0.15);
+  margin-bottom: 10px;
+}
+
+/* Nav active state — SOCOM green glow */
+.navbtn { color: rgba(57,255,20,0.5) !important; letter-spacing: 2px; }
+.navbtn:hover { color: var(--socom-green) !important; }
+.navbtn.active { color: var(--socom-green) !important; border-bottom-color: var(--socom-green) !important; }
+
+/* HUD bars — green tint */
+#hud-health-bar { background: var(--socom-green) !important; box-shadow: 0 0 8px rgba(57,255,20,0.4); }
+#hud-armor-bar  { background: rgba(57,255,20,0.6) !important; }
+#hud-xp-bar     { background: rgba(57,255,20,0.4) !important; }
+
+/* hud stat labels */
+.hud-label { color: rgba(57,255,20,0.5) !important; font-size: 8px !important; letter-spacing: 3px !important; }
+.hud-val { color: var(--socom-green) !important; }
+.hud-icon { filter: hue-rotate(60deg); }
+
+/* Rarity colours — keep, but add SOCOM glow to exotic */
+.rt-exotic, [class*="exotic"] { text-shadow: 0 0 6px var(--socom-amber); }
+
+/* YOU tag in leaderboard */
+.you-tag { background: var(--socom-green) !important; color: #000 !important; font-weight: 700; }
+
+/* lb-tabs — SOCOM */
+.lb-tab { color: rgba(57,255,20,0.5) !important; border-bottom-color: rgba(57,255,20,0.15) !important; font-family: var(--font-hud) !important; letter-spacing: 2px; }
+.lb-tab.active { color: var(--socom-green) !important; border-bottom-color: var(--socom-green) !important; }
+
+/* form-group labels */
+.form-group label { color: rgba(57,255,20,0.6) !important; font-size: 9px; letter-spacing: 3px; }
+
+/* pvp-stat-row */
+.pvp-stat-row { border-bottom-color: rgba(57,255,20,0.08) !important; }
+.pvs-label { color: rgba(57,255,20,0.5) !important; font-family: var(--font-hud) !important; font-size: 10px; letter-spacing: 1px; }
+.pvs-val { color: var(--socom-green) !important; font-family: var(--font-hud) !important; }
+
+/* Modal overlay SOCOM */
+.modal { background: rgba(0,4,0,0.92) !important; }
+.modal-box { border-color: var(--socom-green) !important; border-top: 2px solid var(--socom-green) !important; background: #000 !important; }
+.modal-title { color: var(--socom-green) !important; letter-spacing: 4px !important; font-family: var(--font-hud) !important; }
+
+/* Map tooltip SOCOM */
+.map-tooltip { background: rgba(0,4,0,0.97) !important; border-color: var(--socom-green) !important; }
+.tt-launch { background: transparent !important; border: 1px solid var(--socom-green) !important; color: var(--socom-green) !important; }
+.tt-launch:hover { background: var(--socom-green-mid) !important; }
+
+/* Notif banner final */
+.notif-banner {
+  font-family: var(--font-hud) !important;
+  letter-spacing: 3px !important;
+  text-transform: uppercase !important;
+}
+
+/* Cache banner text */
+#cache-event-text { color: var(--socom-green) !important; }
+
+/* loot card rarity colours through SOCOM lens */
+.lic-rarity.exotic { color: var(--socom-amber) !important; text-shadow: 0 0 6px rgba(255,176,0,0.4); }
+.lic-rarity.named  { color: var(--socom-green) !important; }
+
+/* Mission brief card animation */
+.mission-brief {
+  transition: border-left-color 0.15s;
+}
+.mission-brief:hover { border-left-color: var(--socom-green) !important; background: var(--socom-green-dim) !important; }

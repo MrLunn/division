@@ -46,6 +46,32 @@ const Game = {
     this.updateHUD();
     this.loadView('map');
     setTimeout(() => this.checkActiveEvent(), 2000);
+    setTimeout(() => this.dailyIntelDrop(), 3000);
+  },
+
+  dailyIntelDrop() {
+    const lastDrop = localStorage.getItem('division_last_drop');
+    const today = new Date().toDateString();
+    if (lastDrop === today) return; // already got today's drop
+    localStorage.setItem('division_last_drop', today);
+
+    const drops = [
+      { text:'⚡ INTEL DROP: SHD network detected a supply crate near Youngstorget — mission XP doubled for 1 hour', type:'xp' },
+      { text:'⚡ INTEL DROP: B-Gjengen shipment intercepted — all Dark Zone loot quality boosted today', type:'loot' },
+      { text:'⚡ INTEL DROP: Oslo PD on high alert — arrest chance on heroic missions halved until midnight', type:'safe' },
+      { text:'⚡ INTEL DROP: Underground poker den is hot tonight — winnings multiplied by 1.5x', type:'credits' },
+      { text:'⚡ INTEL DROP: Comanches MC territory is undefended — raid success rate boosted by 20%', type:'raid' },
+      { text:'⚡ INTEL DROP: Classified cache spotted near Operahuset — check the cache event timer', type:'cache' },
+    ];
+    const drop = drops[Math.floor(Math.random() * drops.length)];
+
+    // Big animated banner
+    setTimeout(() => {
+      this.notify(drop.text, 'success', 10000);
+      this.flashScreen('#39ff14');
+      // Also prepend to feed
+      this.prependFeed({ type:'cache_spawn', text: drop.text });
+    }, 1500);
   },
 
   // ============================================================
@@ -471,9 +497,10 @@ const Game = {
         logEl.scrollTop = logEl.scrollHeight;
       }
 
-      titleEl.textContent = result.success
-        ? `✅ MISSION COMPLETE — ${missionName.toUpperCase()}`
-        : `❌ MISSION FAILED — ${missionName.toUpperCase()}`;
+      const succeeded = result.success;
+      titleEl.innerHTML = succeeded
+        ? `<span style="color:var(--socom-green);font-family:var(--font-hud);letter-spacing:4px">[ MISSION COMPLETE ]</span><div style="font-size:11px;color:rgba(57,255,20,0.5);margin-top:4px;letter-spacing:3px">${missionName.toUpperCase()}</div>`
+        : `<span style="color:var(--socom-red);font-family:var(--font-hud);letter-spacing:4px">[ MISSION FAILED ]</span><div style="font-size:11px;color:rgba(255,34,0,0.5);margin-top:4px;letter-spacing:3px">${missionName.toUpperCase()}</div>`;
 
       if (result.success && result.loot?.length > 0) {
         await this.delay(400);
@@ -1217,27 +1244,31 @@ const Game = {
         const isYou = entry.name === this.character?.name;
         const entryRank = this.getRank(entry.level || 1);
         const isBot = entry.is_bot;
+        // Bots use their name as a fake ID for the attack-bot endpoint
+        const attackId = isBot ? null : entry.character_id;
         return `<div class="lb-row ${isYou ? 'you' : ''}">
           ${rankLabel(entry.rank)}
           <div class="lb-name">
             <div>${entry.name || entry.clan_name}
               ${isYou ? '<span class="you-tag">[YOU]</span>' : ''}
-              ${isBot ? '<span style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-left:4px">[BOT]</span>' : ''}
+              ${isBot ? '<span style="font-size:9px;color:rgba(57,255,20,0.3);letter-spacing:1px;margin-left:4px">[AGENT]</span>' : ''}
             </div>
             <div style="font-size:10px;display:flex;gap:8px;margin-top:2px">
               ${entry.name ? `<span style="color:${entryRank.color}">${entryRank.title}</span>` : ''}
               ${entry.clan_tag ? `<span class="lb-clan">[${entry.clan_tag}]</span>` : ''}
-              ${entry.respect ? `<span style="color:#af7ac5">★ ${Number(entry.respect).toLocaleString()}</span>` : ''}
-              ${entry.member_count ? `<span style="color:var(--muted2)">${entry.member_count} members</span>` : ''}
+              ${entry.respect ? `<span style="color:var(--socom-green)">★ ${Number(entry.respect).toLocaleString()}</span>` : ''}
+              ${entry.member_count ? `<span style="color:rgba(57,255,20,0.4)">${entry.member_count} members</span>` : ''}
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <div class="lb-value">${formatVal(type, entry.value)}</div>
-            ${!isYou && type !== 'clans' && entry.character_id
-              ? `<button onclick="Game.leaderboardAttack('${entry.character_id}','${entry.name}',${entry.gear_score || 0})" style="font-size:9px;letter-spacing:1px;padding:3px 8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.4);color:var(--red);cursor:pointer;font-family:var(--font-ui);font-weight:700">ATTACK</button>`
+            ${!isYou && type !== 'clans' && (attackId || isBot)
+              ? `<button onclick="${isBot ? `Game.fightBot()` : `Game.leaderboardAttack('${attackId}','${entry.name}',${entry.gear_score||0})`}"
+                  style="font-size:9px;letter-spacing:1px;padding:3px 10px;background:transparent;border:1px solid var(--socom-red);color:var(--socom-red);cursor:pointer;font-family:var(--font-hud);clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))">ATTACK</button>`
               : ''}
             ${type === 'clans' && entry.clan_id
-              ? `<button onclick="Game.attackClan('${entry.clan_id}','${entry.clan_name}')" style="font-size:9px;letter-spacing:1px;padding:3px 8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.4);color:var(--red);cursor:pointer;font-family:var(--font-ui);font-weight:700">RAID</button>`
+              ? `<button onclick="Game.attackClan('${entry.clan_id}','${entry.clan_name||entry.name}')"
+                  style="font-size:9px;letter-spacing:1px;padding:3px 10px;background:transparent;border:1px solid var(--socom-red);color:var(--socom-red);cursor:pointer;font-family:var(--font-hud);clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))">RAID</button>`
               : ''}
           </div>
         </div>`;
@@ -1596,62 +1627,66 @@ const Game = {
   // ============================================================
   // JAIL VIEW
   // ============================================================
+  _bailedBots: new Set(),
+
   async loadJailView() {
     try {
       const data = await JailAPI.list();
       const el   = document.getElementById('jail-list');
       const myJailEl = document.getElementById('my-jail-status');
 
-      // Show own jail status if arrested
       const c = this.character;
       if (c?.is_jailed && c.jail_until && new Date(c.jail_until) > new Date()) {
         const minsLeft = Math.ceil((new Date(c.jail_until) - Date.now()) / 60000);
         if (myJailEl) myJailEl.innerHTML = `
-          <div style="background:rgba(231,76,60,0.1);border:1px solid var(--red);border-left:3px solid var(--red);padding:14px 16px;margin-bottom:14px">
-            <div style="font-size:9px;letter-spacing:3px;color:var(--red);margin-bottom:4px">🚔 YOU ARE IN CUSTODY</div>
-            <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:8px">${minsLeft} minutes remaining</div>
-            <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">Raise your jailbreak bounty to attract rescuers faster.</div>
+          <div class="mission-brief" style="margin-bottom:14px">
+            <div class="brief-header" style="color:var(--socom-red)">🚔 YOU ARE IN CUSTODY</div>
+            <div class="brief-designator"><span class="key">TIME REMAINING:</span><span class="val" style="color:var(--socom-red)">${minsLeft} MINUTES</span></div>
+            <div class="brief-designator" style="margin-top:8px;font-size:11px;color:var(--muted2)">Raise your jailbreak bounty to attract rescuers faster.</div>
             ${this._jailEventId ? `
-              <div style="display:flex;gap:8px;align-items:center">
-                <input type="number" id="raise-bounty-amount" placeholder="Amount (¢)" min="100" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:6px 10px;font-family:var(--font-hud);font-size:13px;outline:none;width:160px">
-                <button class="btn-primary" style="padding:6px 16px" onclick="Game.raiseBounty()">RAISE BOUNTY</button>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+                <input type="number" id="raise-bounty-amount" placeholder="Amount (¢)" min="100"
+                  style="background:#000;border:1px solid var(--socom-green);color:var(--socom-green);padding:6px 10px;font-family:var(--font-hud);font-size:13px;outline:none;flex:1">
+                <button class="btn-socom" onclick="Game.raiseBounty()">[ RAISE BOUNTY ]</button>
               </div>` : ''}
           </div>`;
-      } else if (myJailEl) {
-        myJailEl.innerHTML = '';
-      }
+      } else if (myJailEl) { myJailEl.innerHTML = ''; }
 
-      if (!data.prisoners.length) {
-        el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:16px 0;text-align:center">No agents in custody right now.</div>';
+      // Filter out bots this player already bailed
+      const visiblePrisoners = data.prisoners.filter(p => !this._bailedBots.has(p.id));
+
+      if (!visiblePrisoners.length) {
+        el.innerHTML = '<div class="socom-data" style="padding:20px 0;text-align:center;opacity:0.5">NO AGENTS IN CUSTODY — OSLO STREETS ARE CLEAR</div>';
         return;
       }
 
-      el.innerHTML = data.prisoners.map(p => {
-        const isMe = p.prisoner_id === this.character?.id;
-        const minsLeft = Math.ceil((new Date(p.jail_until || Date.now() + 60000) - Date.now()) / 60000);
+      el.innerHTML = visiblePrisoners.map(p => {
+        const isMe   = p.prisoner_id === this.character?.id;
+        const minsLeft = p.is_bot ? 30 : Math.max(0, Math.ceil((new Date(p.jail_until || Date.now() + 30*60000) - Date.now()) / 60000));
+        const bounty = Number(p.jailbreak_bounty).toLocaleString();
         return `
-          <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${isMe ? 'var(--red)' : 'var(--border3)'};padding:12px 16px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+          <div class="mission-brief" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
             <div>
-              <div style="font-size:13px;font-weight:700;color:${isMe ? 'var(--red)' : 'var(--text)'};margin-bottom:2px">
-                🚔 ${p.prisoner_name}${isMe ? ' (YOU)' : ''}
+              <div class="brief-header" style="color:${isMe ? 'var(--socom-red)' : p.is_bot ? 'var(--socom-amber)' : 'var(--socom-green)'}">
+                🚔 ${p.prisoner_name}${isMe ? ' — YOU' : p.is_bot ? ' [BOT AGENT]' : ''}
               </div>
-              <div style="font-size:10px;color:var(--muted2)">GS ${p.gear_score} · LV${p.level} · ${minsLeft}m remaining</div>
+              <div class="brief-designator"><span class="key">GS:</span><span class="val">${p.gear_score}</span> &nbsp; <span class="key">LV:</span><span class="val">${p.level}</span> &nbsp; <span class="key">TIME LEFT:</span><span class="val" style="color:var(--socom-red)">${minsLeft}m</span></div>
             </div>
             <div style="text-align:right">
-              <div style="font-family:var(--font-hud);font-size:20px;color:var(--green);font-weight:700">${Number(p.jailbreak_bounty).toLocaleString()} ¢</div>
-              <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px">JAILBREAK REWARD</div>
-              ${!isMe ? `<button class="btn-primary" style="font-size:10px;padding:4px 14px" onclick="Game.breakOut('${p.id}', '${p.prisoner_name}')">BREAK OUT</button>` : ''}
+              <div class="socom-timer" style="font-size:22px">${bounty} ¢</div>
+              <div style="font-size:9px;color:var(--muted2);letter-spacing:2px;margin-bottom:6px">JAILBREAK REWARD</div>
+              ${!isMe ? `<button class="btn-socom" onclick="Game.breakOut('${p.id}', '${p.prisoner_name}', ${!!p.is_bot})">[ BREAK OUT ]</button>` : ''}
             </div>
           </div>`;
       }).join('');
-    } catch (e) {
-      this.notify(e.message, 'error');
-    }
+    } catch (e) { this.notify(e.message, 'error'); }
   },
 
-  async breakOut(eventId, prisonerName) {
+  async breakOut(eventId, prisonerName, isBot = false) {
     try {
       const r = await JailAPI.breakOut(eventId);
+      // Track bailed bots so they don't reappear
+      if (isBot) this._bailedBots.add(eventId);
       this.notify(`🔓 ${r.message}`, 'success', 5000);
       this.flashScreen('#2ecc71');
       const me = await API.auth.me();
@@ -1729,34 +1764,67 @@ const Game = {
       const data = await ExtortionAPI.get();
       const sentEl = document.getElementById('extortion-sent');
       const recEl  = document.getElementById('extortion-received');
+      const botEl  = document.getElementById('extortion-bots');
+
+      // Bot targets panel
+      if (botEl && data.botTargets?.length) {
+        botEl.innerHTML = `
+          <div class="panel-title" style="margin-bottom:10px">// WEAK AGENTS — EXTORT NOW</div>
+          ${data.botTargets.map(b => `
+            <div class="mission-brief" style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div class="brief-header">${b.name}</div>
+                <div class="brief-designator"><span class="key">GS:</span><span class="val">${b.gear_score}</span> <span class="key">LV:</span><span class="val">${b.level}</span></div>
+              </div>
+              <div style="text-align:right">
+                <div class="socom-data" style="font-size:16px;margin-bottom:6px">${b.suggestedAmount?.toLocaleString()} ¢ <span style="opacity:0.4;font-size:10px">suggested</span></div>
+                <button class="btn-socom" style="font-size:10px;padding:4px 12px" onclick="Game.extortBot('${b.id}',${b.suggestedAmount})">[ DEMAND ]</button>
+              </div>
+            </div>`).join('')}`;
+      } else if (botEl) {
+        botEl.innerHTML = '<div class="panel-title" style="margin-bottom:10px">// WEAK AGENTS</div><div class="socom-data" style="opacity:0.4">No weaker agents to extort at your GS level.</div>';
+      }
 
       sentEl.innerHTML = data.sent.length === 0
-        ? '<div style="color:var(--muted);font-size:11px;padding:8px 0">No active demands sent.</div>'
+        ? '<div class="socom-data" style="opacity:0.4;padding:8px 0">No active demands sent.</div>'
         : data.sent.map(e => `
-          <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--accent);padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+          <div class="mission-brief" style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
             <div>
-              <div style="font-size:13px;font-weight:700">💰 ${e.target_name}</div>
-              <div style="font-size:10px;color:var(--muted2)">${new Date(e.deadline).toLocaleTimeString()} deadline · GS ${e.target_gs}</div>
+              <div class="brief-header">DEMAND → ${e.target_name}</div>
+              <div class="brief-designator"><span class="key">DEADLINE:</span><span class="val">${new Date(e.deadline).toLocaleTimeString()}</span></div>
             </div>
-            <div style="font-family:var(--font-hud);font-size:18px;color:var(--accent)">${Number(e.amount).toLocaleString()} ¢</div>
+            <div class="socom-timer" style="font-size:18px">${Number(e.amount).toLocaleString()} ¢</div>
           </div>`).join('');
 
       recEl.innerHTML = data.received.length === 0
-        ? '<div style="color:var(--muted);font-size:11px;padding:8px 0">No demands on you right now.</div>'
+        ? '<div class="socom-data" style="opacity:0.4;padding:8px 0">No demands on you.</div>'
         : data.received.map(e => `
-          <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--red);padding:10px 14px;margin-bottom:6px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-              <div>
-                <div style="font-size:13px;font-weight:700;color:var(--red)">⚠ ${e.extorter_name} demands payment</div>
-                <div style="font-size:10px;color:var(--muted2)">Deadline: ${new Date(e.deadline).toLocaleString()}</div>
-              </div>
-              <div style="font-family:var(--font-hud);font-size:20px;color:var(--red)">${Number(e.amount).toLocaleString()} ¢</div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn-primary" style="font-size:10px;padding:5px 14px" onclick="Game.payExtortion('${e.id}')">PAY UP</button>
-              <button class="btn-secondary" style="font-size:10px;padding:5px 14px" onclick="Game.refuseExtortion('${e.id}')">REFUSE</button>
+          <div class="mission-brief" style="margin-bottom:8px;border-left-color:var(--socom-red)">
+            <div class="brief-header" style="color:var(--socom-red)">⚠ DEMAND FROM ${e.extorter_name}</div>
+            <div class="brief-designator"><span class="key">AMOUNT:</span><span class="val" style="color:var(--socom-red)">${Number(e.amount).toLocaleString()}¢</span></div>
+            <div class="brief-designator"><span class="key">DEADLINE:</span><span class="val">${new Date(e.deadline).toLocaleString()}</span></div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="btn-socom" onclick="Game.payExtortion('${e.id}')">[ PAY UP ]</button>
+              <button class="btn-socom" style="border-color:var(--socom-red);color:var(--socom-red)" onclick="Game.refuseExtortion('${e.id}')">[ REFUSE ]</button>
             </div>
           </div>`).join('');
+    } catch(e) { this.notify(e.message,'error'); }
+  },
+
+  async extortBot(botId, amount) {
+    try {
+      const r = await API.post(`/extortion/bot/${botId}`, { amount });
+      if (r.success) {
+        this.notify(`💰 ${r.message}`, 'success', 4000);
+        this.flashScreen('#e8890c');
+      } else {
+        this.notify(`⚠ ${r.message}`, 'error', 4000);
+        this.flashScreen('#e74c3c');
+      }
+      const me = await API.auth.me();
+      this.character = me.character;
+      this.updateHUD();
+      this.loadExtortionView();
     } catch(e) { this.notify(e.message,'error'); }
   },
 

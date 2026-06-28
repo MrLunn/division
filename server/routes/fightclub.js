@@ -26,9 +26,23 @@ router.get('/', requireAuth, async (req, res) => {
     `, [req.character.id, week, year]);
 
     const myEntry = bracket.rows.find(r => r.is_me);
-    const prizePool = bracket.rows.length * ENTRY_FEE;
+    const realPrizePool = bracket.rows.length * ENTRY_FEE;
 
-    res.json({ bracket: bracket.rows, myEntry: myEntry || null, prizePool, week, year, entryFee: ENTRY_FEE });
+    // Always inject bot opponents so bracket is never empty
+    const BOT_ENTRANTS = [
+      { entrant_id:'bot-fc-1', name:'Ghost_Larsen',  gear_score:280, level:22, wins:3, losses:1, is_bot:true },
+      { entrant_id:'bot-fc-2', name:'IronFjord',      gear_score:440, level:25, wins:5, losses:0, is_bot:true },
+      { entrant_id:'bot-fc-3', name:'Viper_Oslo',     gear_score:195, level:14, wins:1, losses:2, is_bot:true },
+      { entrant_id:'bot-fc-4', name:'NordAgent',      gear_score:320, level:18, wins:4, losses:1, is_bot:true },
+      { entrant_id:'bot-fc-5', name:'Arctic_Fox',     gear_score:175, level:10, wins:0, losses:3, is_bot:true },
+    ];
+
+    const allEntrants = [...bracket.rows, ...BOT_ENTRANTS]
+      .sort((a,b) => b.wins - a.wins || a.losses - b.losses);
+
+    const prizePool = (allEntrants.length) * ENTRY_FEE;
+
+    res.json({ bracket: allEntrants, myEntry: myEntry || null, prizePool, week, year, entryFee: ENTRY_FEE });
   } catch(err) { res.status(500).json({ error:'Failed to load Fight Club' }); }
 });
 
@@ -55,69 +69,67 @@ router.post('/enter', requireAuth, async (req, res) => {
   res.json({ message:`Entered Fight Club! Entry fee: ${ENTRY_FEE.toLocaleString()}¢` });
 });
 
-// POST /api/fightclub/fight/:entrantId — fight another bracket member
+// POST /api/fightclub/fight/:entrantId — fight another bracket member (real or bot)
 router.post('/fight/:entrantId', requireAuth, async (req, res) => {
   const { week, year } = getWeek();
+  const isBot = req.params.entrantId.startsWith('bot-fc-');
 
   const myEntry = await db.query(
     'SELECT * FROM fight_club WHERE entrant_id=$1 AND week=$2 AND year=$3 AND NOT eliminated',
     [req.character.id, week, year]
   );
-  if (!myEntry.rows[0]) return res.status(400).json({ error:'Not entered in this week\'s bracket — enter first' });
-
-  const targetEntry = await db.query(
-    'SELECT fc.*, c.name, c.gear_score, c.level FROM fight_club fc JOIN characters c ON c.id=fc.entrant_id WHERE fc.entrant_id=$1 AND fc.week=$2 AND fc.year=$3',
-    [req.params.entrantId, week, year]
-  );
-  if (!targetEntry.rows[0]) return res.status(404).json({ error:'Opponent not in this week\'s bracket' });
+  if (!myEntry.rows[0]) return res.status(400).json({ error:'Enter the bracket first' });
   if (req.params.entrantId === req.character.id) return res.status(400).json({ error:'Cannot fight yourself' });
 
-  const target = targetEntry.rows[0];
+  const BOT_STATS = {
+    'bot-fc-1':{ name:'Ghost_Larsen',  gear_score:280 },
+    'bot-fc-2':{ name:'IronFjord',     gear_score:440 },
+    'bot-fc-3':{ name:'Viper_Oslo',    gear_score:195 },
+    'bot-fc-4':{ name:'NordAgent',     gear_score:320 },
+    'bot-fc-5':{ name:'Arctic_Fox',    gear_score:175 },
+  };
 
-  // Simulate fight
-  const myGs  = req.character.gear_score;
-  const oppGs = target.gear_score;
-  const gsDelta = myGs - oppGs;
-  const winChance = Math.min(0.90, Math.max(0.10, 0.5 + (gsDelta / 200)));
-  const iWin = Math.random() < winChance;
-
-  // Update bracket records
-  if (iWin) {
-    await db.query('UPDATE fight_club SET wins=wins+1 WHERE entrant_id=$1 AND week=$2 AND year=$3',[req.character.id,week,year]);
-    await db.query('UPDATE fight_club SET losses=losses+1 WHERE entrant_id=$1 AND week=$2 AND year=$3',[req.params.entrantId,week,year]);
+  let targetName, oppGs;
+  if (isBot) {
+    const bot = BOT_STATS[req.params.entrantId];
+    if (!bot) return res.status(404).json({ error:'Bot not found' });
+    targetName = bot.name; oppGs = bot.gear_score;
   } else {
-    await db.query('UPDATE fight_club SET losses=losses+1 WHERE entrant_id=$1 AND week=$2 AND year=$3',[req.character.id,week,year]);
-    await db.query('UPDATE fight_club SET wins=wins+1 WHERE entrant_id=$1 AND week=$2 AND year=$3',[req.params.entrantId,week,year]);
+    const te = await db.query(
+      'SELECT fc.*, c.name, c.gear_score FROM fight_club fc JOIN characters c ON c.id=fc.entrant_id WHERE fc.entrant_id=$1 AND fc.week=$2 AND fc.year=$3',
+      [req.params.entrantId, week, year]
+    );
+    if (!te.rows[0]) return res.status(404).json({ error:'Opponent not in bracket' });
+    targetName = te.rows[0].name; oppGs = te.rows[0].gear_score;
   }
 
-  // XP reward
+  const myGs = req.character.gear_score;
+  const gsDelta = myGs - oppGs;
+  const iWin = Math.random() < Math.min(0.90, Math.max(0.10, 0.5 + (gsDelta / 200)));
+
+  await db.query('UPDATE fight_club SET wins=wins+$1,losses=losses+$2 WHERE entrant_id=$3 AND week=$4 AND year=$5',
+    [iWin?1:0, iWin?0:1, req.character.id, week, year]);
+  if (!isBot) {
+    await db.query('UPDATE fight_club SET wins=wins+$1,losses=losses+$2 WHERE entrant_id=$3 AND week=$4 AND year=$5',
+      [iWin?0:1, iWin?1:0, req.params.entrantId, week, year]);
+  }
+
   const xp = iWin ? 1500 : 300;
   const respect = iWin ? 40 : 5;
-  await db.query('UPDATE characters SET xp=xp+$1, respect=respect+$2, pvp_kills=pvp_kills+$3 WHERE id=$4',
-    [xp, respect, iWin ? 1 : 0, req.character.id]);
-
-  // Check if winner gets prize (top 1 with 3+ wins)
-  const leaderCheck = await db.query(
-    'SELECT * FROM fight_club WHERE week=$1 AND year=$2 ORDER BY wins DESC LIMIT 1',
-    [week, year]
-  );
-  const isLeader = leaderCheck.rows[0]?.entrant_id === req.character.id && iWin;
+  await db.query('UPDATE characters SET xp=xp+$1,respect=respect+$2,pvp_kills=pvp_kills+$3 WHERE id=$4',
+    [xp, respect, iWin?1:0, req.character.id]);
 
   global.broadcastActivity(req.io, {
     type:'fightclub',
-    text:`🥊 FIGHT CLUB: ${iWin ? req.character.name : target.name} defeated ${iWin ? target.name : req.character.name}`,
+    text:`🥊 FIGHT CLUB: ${iWin?req.character.name:targetName} defeated ${iWin?targetName:req.character.name}`,
   });
 
   res.json({
-    playerWins: iWin,
-    opponentName: target.name,
-    opponentGs: oppGs,
-    xp, respect,
-    isLeader,
-    log: [
-      `FIGHT CLUB — ${req.character.name} (GS${myGs}) vs ${target.name} (GS${oppGs})`,
-      `GS advantage: ${gsDelta > 0 ? '+' : ''}${gsDelta}`,
-      iWin ? `${req.character.name} wins by knockout!` : `${target.name} takes the round.`,
+    playerWins:iWin, opponentName:targetName, opponentGs:oppGs, xp, respect,
+    log:[
+      `FIGHT CLUB — ${req.character.name} (GS${myGs}) vs ${targetName} (GS${oppGs})`,
+      `GS differential: ${gsDelta>0?'+':''}${gsDelta}`,
+      iWin ? `${req.character.name} wins by KO!` : `${targetName} takes the round.`,
     ],
   });
 });
