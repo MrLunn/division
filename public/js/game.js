@@ -100,6 +100,50 @@ const Game = {
       if (jailEl) jailEl.style.display = 'flex';
     });
 
+    // BOT ATTACKS — bots actively target you
+    this.socket.on('bot:attacked', ({ botName, botGs, playerWins, creditsStolen, xpGained, message }) => {
+      if (playerWins) {
+        this.notify(`🛡 ${message}`, 'success', 6000);
+        this.flashScreen('#2ecc71');
+      } else {
+        this.notify(`☠ ${message}`, 'error', 7000);
+        this.flashScreen('#e74c3c');
+        // Shake the HUD bar
+        const hudBar = document.getElementById('hud-bar');
+        if (hudBar) { hudBar.style.animation = 'hudShake 0.4s ease'; setTimeout(() => { hudBar.style.animation = ''; }, 400); }
+        // Pulse the health bar red
+        const healthBar = document.getElementById('hud-health-bar');
+        if (healthBar) { healthBar.style.background = '#e74c3c'; setTimeout(() => { healthBar.style.background = 'var(--health)'; }, 800); }
+      }
+      API.auth.me().then(me => { this.character = me.character; this.updateHUD(); }).catch(() => {});
+    });
+
+    this.socket.on('bot:bounty', ({ botName, amount, message }) => {
+      this.notify(`☠ ${message}`, 'error', 8000);
+      this.flashScreen('#e74c3c');
+      // Show bounty alert banner
+      const alertEl  = document.getElementById('bounty-alert');
+      const alertTxt = document.getElementById('bounty-alert-text');
+      if (alertEl && alertTxt) {
+        alertTxt.innerHTML = `<strong style="color:var(--red)">${botName}</strong> posted <strong>${amount.toLocaleString()}¢</strong> on your head`;
+        alertEl.style.display = 'block';
+        setTimeout(() => { alertEl.style.display = 'none'; }, 10000);
+      }
+    });
+
+    this.socket.on('bot:extortion', ({ botName, amount, message }) => {
+      this.notify(`💰 ${message}`, 'error', 7000);
+      this.flashScreen('#e8890c');
+    });
+
+    this.socket.on('bot:arrest_tip', ({ botName, message }) => {
+      this.notify(`🚔 ${message}`, 'error', 6000);
+    });
+
+    this.socket.on('bot:challenge', ({ botName, botGs, message }) => {
+      this.notify(`🥊 ${message}`, '', 6000);
+    });
+
     // Released from jail
     this.socket.on('jail:released', ({ by }) => {
       if (this.character) { this.character.is_jailed = false; this.character.jail_until = null; }
@@ -176,6 +220,15 @@ const Game = {
     if (!c) return;
 
     const rank = this.getRank(c.level || 1);
+    const prevRank = this._lastRank;
+    if (prevRank && prevRank.title !== rank.title) {
+      // RANK UP!
+      this.notify(`⬆ RANK UP — You are now a ${rank.title.toUpperCase()}!`, 'success', 8000);
+      this.flashScreen(rank.color);
+      const nameEl = document.getElementById('hud-name');
+      if (nameEl) { nameEl.classList.remove('rank-up'); void nameEl.offsetWidth; nameEl.classList.add('rank-up'); }
+    }
+    this._lastRank = rank;
 
     // Name + rank badge
     document.getElementById('hud-name').textContent = c.name;
@@ -229,6 +282,29 @@ const Game = {
     if (hn) hn.textContent = Math.round(hp) + '%';
     if (an) an.textContent = Math.round(armor) + '%';
     if (xn) xn.textContent = Math.round(xp) + '%';
+
+    // Goal / next rank progress
+    const goalEl = document.getElementById('rank-progress');
+    if (goalEl && c.level) {
+      const nextRank = this.RANKS.find(r => r.minLevel > (c.level || 1));
+      if (nextRank) {
+        const prevRankLevel = rank.minLevel;
+        const levelsNeeded  = nextRank.minLevel - prevRankLevel;
+        const levelsGained  = (c.level - prevRankLevel);
+        const pct = Math.min(100, (levelsGained / levelsNeeded) * 100);
+        goalEl.innerHTML = `
+          <div style="font-size:9px;letter-spacing:2px;color:var(--muted2);margin-bottom:3px">NEXT RANK</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;font-weight:700;color:${nextRank.color}">${nextRank.title}</span>
+            <div style="flex:1;height:4px;background:var(--border)">
+              <div style="height:100%;width:${pct}%;background:${nextRank.color};transition:width 0.8s ease"></div>
+            </div>
+            <span style="font-size:10px;color:var(--muted2)">LV${nextRank.minLevel}</span>
+          </div>`;
+      } else {
+        goalEl.innerHTML = `<div style="font-size:11px;color:var(--exotic);letter-spacing:2px">★ MAX RANK — DON ★</div>`;
+      }
+    }
 
     const rogueIndicator = document.getElementById('rogue-indicator');
     if (rogueIndicator) rogueIndicator.style.display = c.is_rogue ? 'block' : 'none';
@@ -307,21 +383,35 @@ const Game = {
   renderFeed(feedItems) {
     const el = document.getElementById('activity-feed');
     if (!el) return;
-    el.innerHTML = (feedItems || []).slice(0, 20).map(f => {
-      const cls = f.type === 'exotic_drop' ? 'exotic' : f.type === 'base_capture' ? 'base' : f.type === 'pvp_kill' ? 'pvp' : 'complete';
-      return `<div class="feed-item ${cls}">${f.actor_name}: ${f.detail}</div>`;
-    }).join('') || '<div class="feed-item">No recent activity</div>';
+    el.innerHTML = (feedItems || []).slice(0, 25).map(f => {
+      const text = f.text || (f.actor_name ? `${f.actor_name}: ${f.detail}` : f.detail || '');
+      const cls  = this._feedClass(f.type);
+      return `<div class="feed-item ${cls}" style="animation:feedIn 0.3s ease">${text}</div>`;
+    }).join('') || '<div class="feed-item">Waiting for field activity...</div>';
+  },
+
+  _feedClass(type) {
+    if (!type) return '';
+    if (['pvp','pvp_kill','arrest','jailbreak','clan_raid_win'].includes(type)) return 'pvp';
+    if (['exotic_drop','cache_claimed','cache_spawn'].includes(type)) return 'exotic';
+    if (['base_capture','clan_raid_loss'].includes(type)) return 'base';
+    if (['bounty','bounty_claimed','extortion'].includes(type)) return 'pvp';
+    if (['fightclub'].includes(type)) return 'exotic';
+    return 'complete';
   },
 
   prependFeed(event) {
     const el = document.getElementById('activity-feed');
     if (!el) return;
-    const cls = event.type === 'exotic_drop' ? 'exotic' : event.type === 'base_capture' ? 'base' : event.type === 'pvp_kill' ? 'pvp' : 'complete';
+    const text = event.text || (event.actor_name ? `${event.actor_name}: ${event.detail}` : '');
+    if (!text) return;
+    const cls  = this._feedClass(event.type);
     const item = document.createElement('div');
     item.className = `feed-item ${cls}`;
-    item.textContent = `${event.actor_name}: ${event.detail}`;
+    item.style.animation = 'feedIn 0.4s ease';
+    item.textContent = text;
     el.prepend(item);
-    if (el.children.length > 25) el.lastChild.remove();
+    if (el.children.length > 30) el.lastChild.remove();
   },
 
   // ============================================================

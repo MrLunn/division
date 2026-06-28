@@ -158,9 +158,13 @@ setTimeout(() => spawnCacheEvent(io), 90 * 1000);
 // ============================================================
 // BOT ACTIVITY — keeps the world feeling alive
 // ============================================================
-const { generateBotActivity } = require('./engine/bots');
-setInterval(() => generateBotActivity(io), 4 * 60 * 1000); // every 4 min
-setTimeout(() => generateBotActivity(io), 30 * 1000);      // first one after 30s
+const { generateBotActivity, botAggressiveAction } = require('./engine/bots');
+setInterval(() => generateBotActivity(io), 4 * 60 * 1000);   // world events every 4 min
+setTimeout(() => generateBotActivity(io), 30 * 1000);         // first one after 30s
+
+// BOT AGGRESSION — bots actively attack real players
+setInterval(() => botAggressiveAction(io, connectedAgents), 90 * 1000);  // every 90s
+setTimeout(() => botAggressiveAction(io, connectedAgents), 20 * 1000);   // first attack after 20s
 
 // ============================================================
 // START

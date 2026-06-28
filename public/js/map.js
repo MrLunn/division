@@ -64,10 +64,64 @@ this.ctx = this.canvas.getContext('2d');
   start() { if (this.animFrame) cancelAnimationFrame(this.animFrame); this.loop(); },
   stop()  { if (this.animFrame) cancelAnimationFrame(this.animFrame); this.animFrame = null; },
 
+  // Bot agents moving on the map — live positions
+  botAgents: [
+    { name:'Ghost_Larsen',  x:0.72, y:0.22, vx:0.0003, vy:0.0002, color:'#e74c3c',  faction:'CMC'  },
+    { name:'IronFjord',     x:0.28, y:0.58, vx:-0.0002,vy:0.0003, color:'#a335ee',  faction:'BB'   },
+    { name:'NordAgent',     x:0.55, y:0.32, vx:0.0004, vy:-0.0002,color:'#e8890c',  faction:'BG'   },
+    { name:'Viper_Oslo',    x:0.44, y:0.62, vx:-0.0003,vy:-0.0003,color:'#2ecc71',  faction:'BDN'  },
+    { name:'SHD_Wraith',    x:0.20, y:0.28, vx:0.0002, vy:0.0004, color:'#5dade2',  faction:'BB'   },
+  ],
+
+  // Animated connection lines between bot agents (faction activity)
+  connectionLines: [],
+  lastLineSpawn: 0,
+
   loop() {
-    this.pulseT += 0.025;
+    this.pulseT += 0.018;
+    this.updateBotAgents();
+    this.updateConnectionLines();
     this.draw();
     this.animFrame = requestAnimationFrame(() => this.loop());
+  },
+
+  updateBotAgents() {
+    const t = this.pulseT;
+    this.botAgents.forEach((bot, i) => {
+      // Smooth wandering using sine waves with different phases
+      bot.x += bot.vx * Math.sin(t * 0.3 + i * 1.7);
+      bot.y += bot.vy * Math.cos(t * 0.4 + i * 2.1);
+      // Bounce off edges with padding
+      if (bot.x < 0.12 || bot.x > 0.88) bot.vx *= -1;
+      if (bot.y < 0.08 || bot.y > 0.82) bot.vy *= -1;
+      bot.x = Math.max(0.12, Math.min(0.88, bot.x));
+      bot.y = Math.max(0.08, Math.min(0.82, bot.y));
+    });
+  },
+
+  updateConnectionLines() {
+    const now = Date.now();
+    // Spawn new lines occasionally
+    if (now - this.lastLineSpawn > 2500 + Math.random() * 3000) {
+      this.lastLineSpawn = now;
+      const a = this.botAgents[Math.floor(Math.random() * this.botAgents.length)];
+      const b = this.botAgents[Math.floor(Math.random() * this.botAgents.length)];
+      if (a !== b) {
+        this.connectionLines.push({
+          x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+          color: Math.random() > 0.5 ? '#e74c3c' : '#e8890c',
+          alpha: 0, phase: 'in', born: now,
+        });
+      }
+    }
+    // Age lines
+    this.connectionLines = this.connectionLines.filter(l => {
+      const age = (now - l.born) / 1000;
+      if (l.phase === 'in')  { l.alpha = Math.min(0.6, l.alpha + 0.04); if (l.alpha >= 0.6) l.phase = 'hold'; }
+      if (l.phase === 'hold'){ if (age > 2.5) l.phase = 'out'; }
+      if (l.phase === 'out') { l.alpha = Math.max(0, l.alpha - 0.025); }
+      return l.alpha > 0;
+    });
   },
 
   draw() {
@@ -75,9 +129,102 @@ this.ctx = this.canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, W, H);
     this.drawBase(); this.drawFjord(); this.drawDistricts();
+    this.drawConnectionLines();
     this.drawStreets(); this.drawStreetLabels(); this.drawDistrictLabels();
-    this.drawDZBorder(); this.drawMissions(); this.drawAgent();
+    this.drawDZBorder(); this.drawMissions();
+    this.drawBotAgents();
+    this.drawAgent();
+    this.drawScanLine();
   },
+
+  drawConnectionLines() {
+    const { ctx, W, H } = this;
+    this.connectionLines.forEach(l => {
+      ctx.save();
+      ctx.globalAlpha = l.alpha;
+      ctx.strokeStyle = l.color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.moveTo(l.x1 * W, l.y1 * H);
+      ctx.lineTo(l.x2 * W, l.y2 * H);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Small circles at endpoints
+      ctx.fillStyle = l.color;
+      ctx.beginPath(); ctx.arc(l.x1 * W, l.y1 * H, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(l.x2 * W, l.y2 * H, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+  },
+
+  drawBotAgents() {
+    const { ctx, W, H, pulseT } = this;
+    this.botAgents.forEach((bot, i) => {
+      const x = bot.x * W, y = bot.y * H;
+      const pulse = Math.sin(pulseT * 2 + i * 0.8) * 0.5 + 0.5;
+
+      // Outer ping
+      ctx.save();
+      ctx.globalAlpha = pulse * 0.3;
+      ctx.strokeStyle = bot.color;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, 8 + pulse * 6, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+
+      // Inner dot
+      ctx.save();
+      ctx.globalAlpha = 0.7 + pulse * 0.3;
+      ctx.fillStyle = bot.color;
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      // Name label (small, faded)
+      ctx.save();
+      ctx.globalAlpha = 0.4 + pulse * 0.25;
+      ctx.fillStyle = bot.color;
+      ctx.font = `bold ${Math.floor(W * 0.008)}px Share Tech Mono`;
+      ctx.textAlign = 'center';
+      ctx.fillText(bot.name.split('_')[0], x, y - 10);
+      ctx.restore();
+    });
+  },
+
+  // Radar sweep line — rotates across the whole map
+  drawScanLine() {
+    const { ctx, W, H, pulseT } = this;
+    const cx = W * 0.5, cy = H * 0.45;
+    const angle = (pulseT * 0.4) % (Math.PI * 2);
+    const radius = Math.max(W, H) * 0.9;
+
+    const grad = ctx.createLinearGradient(
+      cx, cy,
+      cx + Math.cos(angle) * radius,
+      cy + Math.sin(angle) * radius
+    );
+    grad.addColorStop(0, 'rgba(46,204,113,0.12)');
+    grad.addColorStop(0.6, 'rgba(46,204,113,0.04)');
+    grad.addColorStop(1, 'rgba(46,204,113,0)');
+
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(46,204,113,0.18)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+    ctx.stroke();
+
+    // Filled wedge for the sweep trail
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, angle - 0.5, angle);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+  },
+
 
   drawBase() {
     const { ctx, W, H } = this;
