@@ -1125,18 +1125,9 @@ html, body {
 
 /* All panel-titles become SOCOM style */
 .panel-title {
-  font-size: 9px !important;
-  letter-spacing: 4px !important;
   color: var(--socom-green) !important;
-  text-transform: uppercase;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(57,255,20,0.15) !important;
-  margin-bottom: 10px;
-  font-family: var(--font-hud) !important;
-  font-weight: 400 !important;
+  border-bottom-color: rgba(57,255,20,0.15) !important;
 }
-.panel-title::before { content: '[ '; opacity: 0.4; }
-.panel-title::after  { content: ' ]'; opacity: 0.4; }
 
 /* Leaderboard rows */
 .lb-row {
