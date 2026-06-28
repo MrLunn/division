@@ -442,8 +442,9 @@ async function init() {
     await client.query(`ALTER TABLE clans ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT FALSE`);
     await client.query(`ALTER TABLE clans ADD COLUMN IF NOT EXISTS bot_gs INT DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE`);
-    // Auto-promote the first registered user to admin
-    await client.query(`UPDATE users SET is_admin=true WHERE id=(SELECT id FROM users ORDER BY created_at ASC LIMIT 1)`);
+    // Promote Mozell account to admin
+    await client.query(`UPDATE users SET is_admin=true WHERE username ILIKE 'mozell'`);
+    await client.query(`UPDATE users SET is_admin=true WHERE id IN (SELECT user_id FROM characters WHERE name ILIKE 'mozell')`);
     // Drop global unique constraint on character names if it exists
     await client.query(`ALTER TABLE characters DROP CONSTRAINT IF EXISTS characters_name_key`).catch(() => {});
     await client.query(seedMissions);
